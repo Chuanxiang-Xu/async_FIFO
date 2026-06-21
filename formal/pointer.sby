@@ -1,0 +1,17 @@
+[options]
+mode prove
+depth 24
+
+[engines]
+smtbmc z3
+
+[script]
+read -formal -sv wptr_full.v
+read -formal -sv rptr_empty.v
+read -formal -sv pointer_formal.sv
+prep -top pointer_formal
+
+[files]
+rtl/core/wptr_full.v
+rtl/core/rptr_empty.v
+formal/pointer_formal.sv

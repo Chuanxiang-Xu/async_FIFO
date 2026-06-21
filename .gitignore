@@ -1,0 +1,60 @@
+# Simulation outputs
+*.out
+*.vvp
+*.vcd
+*.fst
+*.lxt
+*.lxt2
+*.wlf
+*.log
+*.jou
+*.pb
+
+# Verilator
+obj_dir/
+
+# FPGA tool outputs
+.Xil/
+*.cache/
+*.gen/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.srcs/
+db/
+incremental_db/
+output_files/
+simulation/
+xsim.dir/
+
+# Synthesis and implementation artifacts
+*.bit
+*.bin
+*.sof
+*.pof
+*.qpf
+*.qsf
+*.rpt
+*.dcp
+*.edf
+*.edif
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Local scratch directories
+build/
+work/
+examples/pynq_z2/build/
+examples/pynq_z2/reports/
+
+# Python helper artifacts
+__pycache__/
+*.py[cod]

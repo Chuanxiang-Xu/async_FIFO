@@ -1,0 +1,35 @@
+CAPI=2:
+
+name: ::async_fifo:1.0.0
+description: Parameterized asynchronous FIFO RTL with width conversion and stream wrappers
+
+filesets:
+  rtl:
+    files:
+      - rtl/async_reset_sync.v
+      - rtl/core/fifo_mem.v
+      - rtl/core/wptr_full.v
+      - rtl/core/rptr_empty.v
+      - rtl/core/sync_w2r.v
+      - rtl/core/sync_r2w.v
+      - rtl/core/async_fifo_core.v
+      - rtl/async_fifo.v
+      - rtl/async_fifo_width_conv.v
+      - rtl/async_fifo_stream.v
+    file_type: verilogSource
+
+targets:
+  default:
+    filesets:
+      - rtl
+    toplevel: async_fifo
+
+  width_conv:
+    filesets:
+      - rtl
+    toplevel: async_fifo_width_conv
+
+  stream:
+    filesets:
+      - rtl
+    toplevel: async_fifo_stream

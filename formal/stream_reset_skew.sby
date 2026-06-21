@@ -1,0 +1,46 @@
+[tasks]
+write_first
+read_first
+write_first_cover
+read_first_cover
+
+[options]
+multiclock on
+write_first: mode bmc
+write_first: depth 96
+read_first: mode bmc
+read_first: depth 96
+write_first_cover: mode cover
+write_first_cover: depth 160
+read_first_cover: mode cover
+read_first_cover: depth 160
+
+[engines]
+write_first: smtbmc --nopresat --unroll z3
+read_first: smtbmc --nopresat --unroll z3
+write_first_cover: smtbmc --nopresat --unroll z3
+read_first_cover: smtbmc --nopresat --unroll z3
+
+[script]
+read -formal -sv fifo_mem.v
+read -formal -sv wptr_full.v
+read -formal -sv rptr_empty.v
+read -formal -sv sync_w2r.v
+read -formal -sv sync_r2w.v
+read -formal -sv async_fifo_core.v
+read -formal -sv async_fifo_stream.v
+read -formal -sv stream_reset_skew_formal.sv
+write_first: prep -top stream_reset_skew_write_first_formal
+read_first: prep -top stream_reset_skew_read_first_formal
+write_first_cover: prep -top stream_reset_skew_write_first_formal
+read_first_cover: prep -top stream_reset_skew_read_first_formal
+
+[files]
+rtl/core/fifo_mem.v
+rtl/core/wptr_full.v
+rtl/core/rptr_empty.v
+rtl/core/sync_w2r.v
+rtl/core/sync_r2w.v
+rtl/core/async_fifo_core.v
+rtl/async_fifo_stream.v
+formal/stream_reset_skew_formal.sv

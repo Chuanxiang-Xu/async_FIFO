@@ -1,0 +1,37 @@
+[tasks]
+req_pack4
+req_split4
+stream_pack4
+stream_split4
+
+[options]
+multiclock on
+mode cover
+depth 128
+
+[engines]
+smtbmc --nopresat --unroll z3
+
+[script]
+read -formal -sv fifo_mem.v wptr_full.v rptr_empty.v
+read -formal -sv sync_w2r.v sync_r2w.v async_fifo_core.v
+read -formal -sv async_fifo_width_conv.v async_fifo_stream.v matrix_formal.sv
+req_pack4: chparam -set WDATA_WIDTH 8 -set RDATA_WIDTH 32 -set ADDR_WIDTH 4 width_matrix_formal
+req_split4: chparam -set WDATA_WIDTH 32 -set RDATA_WIDTH 8 -set ADDR_WIDTH 4 width_matrix_formal
+stream_pack4: chparam -set WDATA_WIDTH 8 -set RDATA_WIDTH 32 -set ADDR_WIDTH 4 stream_matrix_formal
+stream_split4: chparam -set WDATA_WIDTH 32 -set RDATA_WIDTH 8 -set ADDR_WIDTH 4 stream_matrix_formal
+req_pack4: prep -top width_matrix_formal
+req_split4: prep -top width_matrix_formal
+stream_pack4: prep -top stream_matrix_formal
+stream_split4: prep -top stream_matrix_formal
+
+[files]
+rtl/core/fifo_mem.v
+rtl/core/wptr_full.v
+rtl/core/rptr_empty.v
+rtl/core/sync_w2r.v
+rtl/core/sync_r2w.v
+rtl/core/async_fifo_core.v
+rtl/async_fifo_width_conv.v
+rtl/async_fifo_stream.v
+formal/matrix_formal.sv

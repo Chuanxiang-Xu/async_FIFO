@@ -1,0 +1,10 @@
+rtl/async_reset_sync.v
+rtl/core/fifo_mem.v
+rtl/core/wptr_full.v
+rtl/core/rptr_empty.v
+rtl/core/sync_w2r.v
+rtl/core/sync_r2w.v
+rtl/core/async_fifo_core.v
+rtl/async_fifo.v
+rtl/async_fifo_width_conv.v
+rtl/async_fifo_stream.v

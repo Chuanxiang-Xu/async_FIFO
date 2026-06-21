@@ -1,0 +1,81 @@
+name: RTL checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulate-lint-and-cdc:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    container:
+      image: hdlc/sim@sha256:bd8c96069d9a5649bc6ca20a4e9c9eb4f9315725fce17fd1dc6dcf7f203c9120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Report pinned simulation tool versions
+        run: |
+          iverilog -V
+          verilator --version
+          python3 --version
+
+      - name: Run simulations
+        run: make test
+
+      - name: Check parameter diagnostics
+        run: make params
+
+      - name: Run lint
+        run: make lint
+
+      - name: Check CDC synchronizer structure
+        run: make cdc
+
+      - name: Check release metadata
+        run: make release-check
+
+  synthesize-and-prove:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    container:
+      image: hdlc/formal@sha256:749601143dde2381a59d6b40c120a3b12dd2a792923c196a5494b734e53c9d5e
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Report pinned formal tool versions
+        run: |
+          yosys -V
+          z3 --version
+          sby --help
+
+      - name: Run synthesis checks
+        run: make synth
+
+      - name: Run formal proofs
+        run: make formal
+
+  xilinx-vivado-cdc:
+    if: >-
+      ${{ vars.XILINX_CI_ENABLED == 'true' &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: [self-hosted, linux, x64, vivado-2025.2]
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Report Vivado version
+        run: vivado -version
+
+      - name: Validate runner and Xilinx CDC constraints
+        run: scripts/check_xilinx_runner.sh

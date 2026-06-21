@@ -1,0 +1,46 @@
+[tasks]
+pack
+split
+pack_cover
+split_cover
+
+[options]
+multiclock on
+pack: mode bmc
+pack: depth 64
+split: mode bmc
+split: depth 64
+pack_cover: mode cover
+pack_cover: depth 160
+split_cover: mode cover
+split_cover: depth 160
+
+[engines]
+pack: smtbmc --nopresat --unroll z3
+split: smtbmc --nopresat --unroll z3
+pack_cover: smtbmc --nopresat --unroll z3
+split_cover: smtbmc --nopresat --unroll z3
+
+[script]
+read -formal -sv fifo_mem.v
+read -formal -sv wptr_full.v
+read -formal -sv rptr_empty.v
+read -formal -sv sync_w2r.v
+read -formal -sv sync_r2w.v
+read -formal -sv async_fifo_core.v
+read -formal -sv async_fifo_width_conv.v
+read -formal -sv width_conv_formal.sv
+pack: prep -top width_conv_pack_formal
+split: prep -top width_conv_split_formal
+pack_cover: prep -top width_conv_pack_formal
+split_cover: prep -top width_conv_split_formal
+
+[files]
+rtl/core/fifo_mem.v
+rtl/core/wptr_full.v
+rtl/core/rptr_empty.v
+rtl/core/sync_w2r.v
+rtl/core/sync_r2w.v
+rtl/core/async_fifo_core.v
+rtl/async_fifo_width_conv.v
+formal/width_conv_formal.sv
