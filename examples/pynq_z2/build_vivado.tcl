@@ -29,7 +29,7 @@ create_project -force async_fifo_pynq_z2 $build_dir \
     -part xc7z020clg400-1
 
 add_files [list \
-    [file join $repo_root rtl/async_reset_sync.v] \
+    [file join $repo_root rtl/util/async_reset_sync.v] \
     [file join $repo_root rtl/core/fifo_mem.v] \
     [file join $repo_root rtl/core/wptr_full.v] \
     [file join $repo_root rtl/core/rptr_empty.v] \

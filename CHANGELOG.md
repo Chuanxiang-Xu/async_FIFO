@@ -5,6 +5,12 @@ Versioning.
 
 ## [Unreleased]
 
+- Reorganized RTL into `core/`, `wrappers/`, and `util/` layers while keeping
+  `rtl/async_fifo.v` as the minimal stable user entry point.
+- Added the `examples/basic_fifo` minimal integration example and a top-level
+  "Which module should I use?" guide.
+- Added architecture and centralized advanced-status documentation.
+- Added a reproducible Conda verification environment and Markdown link checks.
 - Added symbolic clock-rate/phase core BMCs.
 - Expanded the wrapper matrix to 20 BMC elaborations, including 16-bit equal
   width and bidirectional 1:8 conversion.

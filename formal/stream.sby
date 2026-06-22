@@ -42,5 +42,5 @@ rtl/core/rptr_empty.v
 rtl/core/sync_w2r.v
 rtl/core/sync_r2w.v
 rtl/core/async_fifo_core.v
-rtl/async_fifo_stream.v
+rtl/wrappers/async_fifo_stream.v
 formal/stream_formal.sv

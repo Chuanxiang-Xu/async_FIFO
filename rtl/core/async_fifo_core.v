@@ -1,5 +1,7 @@
 `timescale 1ns/1ps
 
+// Internal equal-width FIFO implementation. Most integrations should use the
+// stable rtl/async_fifo.v entry point rather than instantiate this directly.
 module async_fifo_core #(
     parameter DATA_WIDTH = 32,
     parameter ADDR_WIDTH = 9,

@@ -56,18 +56,23 @@
 ```text
 async_FIFO/
 ├── rtl/
-│   ├── async_fifo.v             # 等宽可复用顶层
-│   ├── async_fifo_width_conv.v  # 变宽可复用顶层
-│   ├── async_fifo_stream.v      # 带包边界的 ready/valid 顶层
-│   ├── async_reset_sync.v       # 异步断言、同步撤销复位模块
+│   ├── async_fifo.v             # 最小等宽用户入口
 │   ├── files.f                  # RTL 文件清单
-│   └── core/
-│       ├── async_fifo_core.v    # 等宽异步 FIFO 顶层
-│       ├── fifo_mem.v           # 双时钟 Simple Dual-Port RAM
-│       ├── wptr_full.v          # 写指针和 full 产生
-│       ├── rptr_empty.v         # 读指针和 empty 产生
-│       ├── sync_w2r.v           # 写指针同步到读时钟域
-│       └── sync_r2w.v           # 读指针同步到写时钟域
+│   ├── core/
+│   │   ├── async_fifo_core.v    # 等宽异步 FIFO 顶层
+│   │   ├── fifo_mem.v           # 双时钟 Simple Dual-Port RAM
+│   │   ├── wptr_full.v          # 写指针和 full 产生
+│   │   ├── rptr_empty.v         # 读指针和 empty 产生
+│   │   ├── sync_w2r.v           # 写指针同步到读时钟域
+│   │   └── sync_r2w.v           # 读指针同步到写时钟域
+│   ├── wrappers/
+│   │   ├── async_fifo_width_conv.v # 可选位宽转换 wrapper
+│   │   └── async_fifo_stream.v     # 可选分包流 wrapper
+│   └── util/
+│       └── async_reset_sync.v       # 异步断言、同步撤销复位模块
+├── examples/
+│   ├── basic_fifo/              # 最小等宽集成示例
+│   └── pynq_z2/                 # FPGA 板级验证设计
 └── test/
     ├── tb_reset_sync.sv         # 复位同步模块行为测试
     ├── tb_fifo_basic.sv         # 基础功能和水位标志测试
@@ -675,15 +680,25 @@ rd_rstn && rd_en && !empty
 分包流式集成建议使用 `async_fifo_stream`，因为它进一步提供完整
 ready/valid 反压和包元数据。
 
-对于等宽 `async_fifo`，`wr_used` 和 `rd_used` 是各自本地时钟域中的
-占用量视图。变宽和流式包装层使用更明确的 `wr_core_used` 与
-`rd_core_used`：它们只统计内部宽字 core，不包含本地拼包、pending 和
-输出缓冲。由于远端指针存在同步延迟，这些信号都不是跨时钟域的瞬时
-全局计数。
+`full`、`empty`、almost 标志和所有占用量输出的精确定义统一见
+[接口与时序](docs/interface.md)；高级状态信号及 wrapper 本地存储语义以该文档为准。
 
 ## 16. 仿真
 
-需要 Icarus Verilog：
+先创建并激活可复现的 Conda 工具环境：
+
+```bash
+conda env create -f environment.yml
+conda activate async_fifo
+```
+
+`environment.yml` 更新后，可同步已有环境：
+
+```bash
+conda env update -n async_fifo -f environment.yml --prune
+```
+
+然后运行以下检查。
 
 运行全部测试：
 

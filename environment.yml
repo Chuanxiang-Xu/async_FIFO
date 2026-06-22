@@ -1,0 +1,15 @@
+name: async_fifo
+channels:
+  - conda-forge
+  - litex-hub
+  - defaults
+dependencies:
+  - python=3.11
+  - make
+  - iverilog
+  - verilator
+  # LiteX Hub's packaged SymbiYosys still emits write_ilang, which was
+  # removed by newer Yosys releases. Keep this pair reproducible.
+  - yosys=0.31
+  - symbiyosys
+  - z3prover
