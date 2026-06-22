@@ -37,6 +37,9 @@ jobs:
       - name: Check CDC synchronizer structure
         run: make cdc
 
+      - name: Check documentation entry points and links
+        run: make docs-check
+
       - name: Check release metadata
         run: make release-check
 

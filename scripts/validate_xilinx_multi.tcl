@@ -2,7 +2,7 @@ set script_dir [file dirname [file normalize [info script]]]
 set repo_root [file normalize [file join $script_dir ..]]
 
 read_verilog [list \
-    [file join $repo_root rtl/async_reset_sync.v] \
+    [file join $repo_root rtl/util/async_reset_sync.v] \
     [file join $repo_root rtl/core/fifo_mem.v] \
     [file join $repo_root rtl/core/wptr_full.v] \
     [file join $repo_root rtl/core/rptr_empty.v] \

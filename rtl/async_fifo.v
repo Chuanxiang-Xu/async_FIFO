@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 
-// Reusable equal-width asynchronous FIFO.
+// Minimal public entry point for the equal-width asynchronous FIFO.
+// Optional protocol features live in rtl/wrappers/.
 //
 // DATA_WIDTH:
 //   Number of bits in each stored word.

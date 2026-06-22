@@ -4,12 +4,30 @@
 
 [Interface and timing](docs/interface.md) ·
 [CDC constraints](docs/cdc_constraints.md) ·
+[Architecture](docs/architecture.md) ·
 [PYNQ-Z2 Vivado validation](docs/pynq_z2_vivado.md) ·
 [Xilinx CI runner](docs/xilinx_runner.md) ·
 [Compatibility](docs/compatibility.md) ·
 [Changelog](CHANGELOG.md) ·
 [Contributing](CONTRIBUTING.md) ·
 [MIT License](LICENSE)
+
+## Which module should I use?
+
+| Need | Module | Role |
+|---|---|---|
+| A small, equal-width asynchronous FIFO | `async_fifo` | **Start here.** Minimal public entry point |
+| Different write and read widths | `async_fifo_width_conv` | Optional width-conversion wrapper |
+| Ready/valid streaming with `keep` and `last` | `async_fifo_stream` | Optional packet-stream wrapper |
+
+Most users should instantiate `async_fifo`. See
+[`examples/basic_fifo/`](examples/basic_fifo/) for the smallest complete
+example. The other two modules live under `rtl/wrappers/` to make their role
+explicit; they add protocol behavior around the same equal-width core.
+
+Detailed timing, reset, almost-flag, and occupancy semantics are centralized in
+[Interface and Timing](docs/interface.md). The implementation layers are shown
+in [Architecture](docs/architecture.md).
 
 ## Read before integration
 
@@ -64,18 +82,23 @@ means bounded model checking; cover tasks establish bounded reachability.
 ```text
 async_FIFO/
 ├── rtl/
-│   ├── async_fifo.v             # Reusable equal-width top level
-│   ├── async_fifo_width_conv.v  # Reusable width-converting top level
-│   ├── async_fifo_stream.v      # Packet-aware ready/valid top level
-│   ├── async_reset_sync.v       # Async-assert/sync-release reset helper
+│   ├── async_fifo.v             # Minimal public equal-width entry point
 │   ├── files.f                  # RTL file list
-│   └── core/
-│       ├── async_fifo_core.v    # Equal-width asynchronous FIFO
-│       ├── fifo_mem.v           # Dual-clock simple dual-port RAM
-│       ├── wptr_full.v          # Write pointer and full flag
-│       ├── rptr_empty.v         # Read pointer and empty flag
-│       ├── sync_w2r.v           # Write pointer into read domain
-│       └── sync_r2w.v           # Read pointer into write domain
+│   ├── core/
+│   │   ├── async_fifo_core.v    # Equal-width asynchronous FIFO
+│   │   ├── fifo_mem.v           # Dual-clock simple dual-port RAM
+│   │   ├── wptr_full.v          # Write pointer and full flag
+│   │   ├── rptr_empty.v         # Read pointer and empty flag
+│   │   ├── sync_w2r.v           # Write pointer into read domain
+│   │   └── sync_r2w.v           # Read pointer into write domain
+│   ├── wrappers/
+│   │   ├── async_fifo_width_conv.v # Optional width-conversion wrapper
+│   │   └── async_fifo_stream.v     # Optional packet-stream wrapper
+│   └── util/
+│       └── async_reset_sync.v       # Async-assert/sync-release reset helper
+├── examples/
+│   ├── basic_fifo/              # Smallest equal-width integration
+│   └── pynq_z2/                 # FPGA board validation design
 └── test/
     ├── tb_reset_sync.sv         # Reset synchronizer behavior test
     ├── tb_fifo_basic.sv         # Basic and almost-flag tests
@@ -665,16 +688,26 @@ Both request-based FIFO modules expose `rd_valid` for synchronous read timing.
 Packet-streaming integrations should prefer `async_fifo_stream`, which adds
 complete ready/valid backpressure and packet metadata.
 
-For equal-width `async_fifo`, `wr_used` and `rd_used` are local-domain
-occupancy views. The width-converting and stream wrappers expose the more
-explicit names `wr_core_used` and `rd_core_used`: they count internal wide
-core words and intentionally exclude local pack, pending, and output buffers.
-Synchronization latency means none of these signals is an instantaneous
-global count.
+For the precise semantics of `full`, `empty`, the almost flags, and all
+occupancy outputs, see [Interface and Timing](docs/interface.md). That document
+is the single reference for advanced status signals and wrapper-local storage.
 
 ## 16. Simulation
 
-With Icarus Verilog:
+Create and activate the reproducible Conda tool environment:
+
+```bash
+conda env create -f environment.yml
+conda activate async_fifo
+```
+
+To update an existing environment after `environment.yml` changes:
+
+```bash
+conda env update -n async_fifo -f environment.yml --prune
+```
+
+Then run the checks below.
 
 Run all tests:
 

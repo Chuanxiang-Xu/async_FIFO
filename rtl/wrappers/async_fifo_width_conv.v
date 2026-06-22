@@ -1,5 +1,7 @@
 `timescale 1ns/1ps
 
+// Optional wrapper around async_fifo_core for request-based width conversion.
+// Use rtl/async_fifo.v when both interfaces have the same data width.
 module async_fifo_width_conv #(
     parameter WDATA_WIDTH = 16,
     parameter RDATA_WIDTH = 32,

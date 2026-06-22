@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-// Packet-aware, width-converting asynchronous FIFO.
+// Optional wrapper around async_fifo_core for packet-aware width conversion.
 //
 // Transfers use ready/valid handshakes in each clock domain. Byte-valid and
 // packet-boundary metadata cross the FIFO together with the payload.

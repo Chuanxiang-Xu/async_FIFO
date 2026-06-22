@@ -29,6 +29,30 @@ Assertion is asynchronous and release takes `STAGES` local rising edges.
 `STAGES` must be at least two. This helper does not change the FIFO's
 destructive coordinated-reset contract.
 
+## Advanced status signals
+
+This section is the single reference for status outputs beyond the basic
+transfer qualifiers. Logic that moves data must use `!full`/`!empty` for the
+request interfaces or `ready && valid` for the stream interface; the signals
+below are for monitoring and early flow control.
+
+| Signal | Clock domain | Meaning |
+|---|---|---|
+| `almost_full` | write | Local, registered core occupancy is at or above the configured high threshold |
+| `almost_empty` | read | Local, registered core occupancy is at or below the configured low threshold |
+| `wr_used` | write | Equal-width FIFO occupancy derived from the local write pointer and synchronized read pointer |
+| `rd_used` | read | Equal-width FIFO readable count derived from the local read pointer and synchronized write pointer |
+| `wr_core_used` | write | Wrapper view of core occupancy only; excludes local pack/pending/output storage |
+| `rd_core_used` | read | Wrapper view of core occupancy only; excludes local pack/pending/output storage |
+
+Every value is a local clock-domain view. Remote-pointer synchronization means
+none is an instantaneous global snapshot, and flag deassertion is deliberately
+conservative. Wrapper occupancy is measured in internal core words, not
+interface beats. In particular, `almost_empty` may be high while a wrapper
+still holds readable split or prefetched data. Thresholds likewise use core
+word units. Wrapper-specific storage bounds are documented in the capacity
+sections below.
+
 ## Equal-width interface: `async_fifo`
 
 ### Parameters

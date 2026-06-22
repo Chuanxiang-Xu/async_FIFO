@@ -38,7 +38,7 @@ def check_sync(path: Path, source_name: str, meta_name: str, sync_name: str) -> 
 
 
 def main() -> int:
-    reset_sync = (ROOT / "rtl/async_reset_sync.v").read_text(encoding="utf-8")
+    reset_sync = (ROOT / "rtl/util/async_reset_sync.v").read_text(encoding="utf-8")
     require(
         reset_sync,
         r"module\s+async_reset_sync.*?"
