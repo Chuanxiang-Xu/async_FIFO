@@ -1,16 +1,19 @@
-# Asynchronous FIFO: Reusable RTL, CDC Constraints, and Verification Guide
+# Asynchronous FIFO
 
 [中文](README-CN.md)
 
-[Interface and timing](docs/interface.md) ·
-[CDC constraints](docs/cdc_constraints.md) ·
+A compact, learning-oriented asynchronous FIFO RTL project with CDC
+constraints, wrappers, simulation/formal checks, and a small PYNQ-Z2 board
+demo.
+
+[Use it](#which-module-should-i-use) ·
+[Learn it](docs/learning_async_fifo.md) ·
+[Interface](docs/interface.md) ·
 [Architecture](docs/architecture.md) ·
-[PYNQ-Z2 Vivado validation](docs/pynq_z2_vivado.md) ·
-[Xilinx CI runner](docs/xilinx_runner.md) ·
-[Compatibility](docs/compatibility.md) ·
-[Changelog](CHANGELOG.md) ·
-[Contributing](CONTRIBUTING.md) ·
-[MIT License](LICENSE)
+[CDC constraints](docs/cdc_constraints.md) ·
+[Board demo](docs/pynq_z2_vivado.md) ·
+[Limitations](#limitations--sign-off-status) ·
+[中文](README-CN.md)
 
 ## Which module should I use?
 
@@ -27,7 +30,55 @@ explicit; they add protocol behavior around the same equal-width core.
 
 Detailed timing, reset, almost-flag, and occupancy semantics are centralized in
 [Interface and Timing](docs/interface.md). The implementation layers are shown
-in [Architecture](docs/architecture.md).
+in [Architecture](docs/architecture.md). If you want to study the design rather
+than only instantiate it, start with
+[Learning Async FIFO](docs/learning_async_fifo.md).
+
+## Architecture at a glance
+
+![Async FIFO core and wrapper architecture](docs/assets/architecture.svg)
+
+The core stays equal-width and owns the CDC mechanism. Width conversion and
+stream packet handling are explicit wrappers around that same core.
+
+## Waveform snapshot
+
+![Representative async FIFO waveform](docs/assets/async_fifo_waveform.svg)
+
+The write and read clocks are unrelated. Writes are accepted in the write
+domain, the read domain sees availability after Gray-pointer synchronization,
+and consumers qualify returned data with `rd_valid`.
+
+## Simple board demo
+
+The PYNQ-Z2 example builds a synthesizable smoke test for
+`xc7z020clg400-1`: a 100 MHz write clock and 75 MHz read clock move a counter
+sequence through the FIFO. LED0 is a sticky mismatch indicator, LED2 blinks
+only after successful reads, and LED3 shows MMCM lock.
+
+```bash
+make pynq-z2
+```
+
+See [PYNQ-Z2 Vivado Validation](docs/pynq_z2_vivado.md) for the bitstream path,
+report checklist, LED behavior, and the exact Vivado 2025.2 validation result.
+
+## Limitations / sign-off status
+
+This is a reusable and well-checked learning project, not a blanket production
+sign-off package.
+
+- FIFO depth is a power of two.
+- Width conversion supports integer power-of-two ratios.
+- Reset is destructive; data-preserving unilateral runtime reset is not
+  supported.
+- Almost flags and occupancy values are local-domain flow-control views, not
+  simultaneous global snapshots.
+- Open-source simulation/formal checks are bounded and parameter-sampled.
+- Xilinx constraints are implementation-validated for the included Vivado
+  flows; Intel constraints are provided as a template.
+- Real products still need device-, clock-, and integration-specific STA, CDC,
+  reset, DRC, and methodology review.
 
 ## Read before integration
 

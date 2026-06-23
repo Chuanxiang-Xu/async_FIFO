@@ -5,11 +5,17 @@ Versioning.
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [1.0.0] - 2026-06-23
+
 - Reorganized RTL into `core/`, `wrappers/`, and `util/` layers while keeping
   `rtl/async_fifo.v` as the minimal stable user entry point.
 - Added the `examples/basic_fifo` minimal integration example and a top-level
   "Which module should I use?" guide.
-- Added architecture and centralized advanced-status documentation.
+- Added architecture, learning, and centralized advanced-status documentation.
+- Added README architecture and waveform figures plus concise limitation and
+  board-demo summaries.
 - Added a reproducible Conda verification environment and Markdown link checks.
 - Added symbolic clock-rate/phase core BMCs.
 - Expanded the wrapper matrix to 20 BMC elaborations, including 16-bit equal
@@ -18,8 +24,6 @@ Versioning.
 - Added Xilinx self-hosted runner readiness checks and setup documentation.
 - Replaced the incompatible SBY/ABC BMC combination with the pinned Z3 SMT
   engine used by CI.
-
-## [1.0.0] - 2026-06-21
 
 - Added equal-width, width-converting, and packet-stream asynchronous FIFO
   interfaces.

@@ -1,15 +1,76 @@
-# 异步 FIFO：可复用 RTL、CDC 约束与验证指南
+# 异步 FIFO
 
 [English](README.md)
 
-[接口与时序](docs/interface.md) ·
+一个偏学习导向的紧凑异步 FIFO RTL 项目，包含 CDC 约束、wrapper、仿真/形式验证
+和一个简单的 PYNQ-Z2 板级 demo。
+
+[怎么用](#我应该使用哪个模块) ·
+[怎么学](docs/learning_async_fifo_CN.md) ·
+[接口](docs/interface.md) ·
+[架构](docs/architecture.md) ·
 [CDC 约束](docs/cdc_constraints.md) ·
-[PYNQ-Z2 Vivado 验证](docs/pynq_z2_vivado.md) ·
-[Xilinx CI runner](docs/xilinx_runner.md) ·
-[兼容性](docs/compatibility.md) ·
-[变更记录](CHANGELOG.md) ·
-[贡献指南](CONTRIBUTING.md) ·
-[MIT 许可证](LICENSE)
+[板级 demo](docs/pynq_z2_vivado.md) ·
+[限制与签核状态](#限制与签核状态) ·
+[English](README.md)
+
+## 我应该使用哪个模块？
+
+| 需求 | 模块 | 角色 |
+|---|---|---|
+| 小型等宽异步 FIFO | `async_fifo` | **从这里开始。** 最小公开用户入口 |
+| 写读位宽不同 | `async_fifo_width_conv` | 可选位宽转换 wrapper |
+| 带 `keep`、`last` 的 `ready/valid` 流接口 | `async_fifo_stream` | 可选分包流 wrapper |
+
+大多数用户应该实例化 `async_fifo`。最小完整例子见
+[`examples/basic_fifo/`](examples/basic_fifo/)。另外两个模块放在
+`rtl/wrappers/` 下，明确表示它们是在同一个等宽 core（内核）外面增加协议行为。
+
+端口、复位、almost flag（预警标志）和 occupancy（占用量）语义集中在
+[接口与时序](docs/interface.md)。
+实现层次见[架构说明](docs/architecture.md)。如果你想通过这个项目学习异步 FIFO
+原理，而不仅是使用 IP，可以从[学习异步 FIFO](docs/learning_async_fifo_CN.md)开始。
+
+## 架构速览
+
+![Async FIFO core and wrapper architecture](docs/assets/architecture.svg)
+
+core 保持等宽并负责真正的 CDC 机制。位宽转换和 stream 分包行为都作为 wrapper
+包在同一个 core 外面。
+
+## 波形快照
+
+![Representative async FIFO waveform](docs/assets/async_fifo_waveform.svg)
+
+写时钟和读时钟互不相关。数据在写时钟域写入；读时钟域经过格雷码指针同步延迟后
+看到可读数据；消费者必须用 `rd_valid` 限定返回数据。
+
+## 简单板级 demo
+
+PYNQ-Z2 示例为 `xc7z020clg400-1` 构建了一个可综合 smoke test：100 MHz 写时钟和
+75 MHz 读时钟通过 FIFO 搬运计数序列。LED0 是 sticky mismatch 指示，LED2 只有在
+持续成功读取时才会闪烁，LED3 表示 MMCM locked。
+
+```bash
+make pynq-z2
+```
+
+bitstream 路径、报告检查项、LED 行为和 Vivado 2025.2 验证结果见
+[PYNQ-Z2 Vivado 验证](docs/pynq_z2_vivado.md)。
+
+## 限制与签核状态
+
+这是一个经过较完整检查、适合复用和学习的项目，但不是覆盖所有产品场景的
+production sign-off 包。
+
+- FIFO 深度必须是 2 的幂。
+- 位宽转换只支持整数 2 次幂比例。
+- 复位是破坏性的；不支持运行中单侧复位并保留数据。
+- almost 标志和 occupancy 只是本地时钟域流控视图，不是全局瞬时快照。
+- 开源仿真/形式验证是有界、参数抽样的检查。
+- Xilinx 约束已在仓库内 Vivado 流程做实现验证；Intel 约束是模板。
+- 真实产品仍需要针对目标器件、时钟和集成方式完成 STA、CDC、reset、DRC 和
+  methodology review。
 
 ## 使用前必读
 

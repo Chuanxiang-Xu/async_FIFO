@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="360" viewBox="0 0 920 360" role="img" aria-labelledby="title desc">
+  <title id="title">Async FIFO core and wrapper architecture</title>
+  <desc id="desc">The minimal async_fifo entry and optional width conversion and stream wrappers all instantiate async_fifo_core, which contains RAM, pointer, flag, and synchronizer blocks.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#3b82f6"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #ffffff; stroke: #334155; stroke-width: 1.4; rx: 12; }
+      .core { fill: #eff6ff; stroke: #1d4ed8; stroke-width: 1.6; rx: 14; }
+      .sub { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.1; rx: 10; }
+      .util { fill: #fef3c7; stroke: #b45309; stroke-width: 1.2; rx: 12; }
+      .text { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .small { font-size: 13px; }
+      .label { font-size: 16px; font-weight: 700; }
+      .muted { fill: #475569; font-size: 12px; }
+      .line { stroke: #3b82f6; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #b45309; stroke-width: 1.7; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="920" height="360"/>
+
+  <rect class="box" x="42" y="44" width="210" height="58"/>
+  <text class="text label" x="147" y="68" text-anchor="middle">async_fifo</text>
+  <text class="text muted" x="147" y="88" text-anchor="middle">minimal equal-width entry</text>
+
+  <rect class="box" x="42" y="148" width="210" height="58"/>
+  <text class="text label" x="147" y="172" text-anchor="middle">async_fifo_width_conv</text>
+  <text class="text muted" x="147" y="192" text-anchor="middle">optional width wrapper</text>
+
+  <rect class="box" x="42" y="252" width="210" height="58"/>
+  <text class="text label" x="147" y="276" text-anchor="middle">async_fifo_stream</text>
+  <text class="text muted" x="147" y="296" text-anchor="middle">optional stream wrapper</text>
+
+  <rect class="core" x="345" y="70" width="530" height="220"/>
+  <text class="text label" x="610" y="102" text-anchor="middle">async_fifo_core</text>
+  <text class="text muted" x="610" y="123" text-anchor="middle">CDC mechanism: RAM + pointers + local status</text>
+
+  <rect class="sub" x="382" y="150" width="128" height="54"/>
+  <text class="text small" x="446" y="173" text-anchor="middle">fifo_mem</text>
+  <text class="text muted" x="446" y="191" text-anchor="middle">dual-clock RAM</text>
+
+  <rect class="sub" x="530" y="150" width="128" height="54"/>
+  <text class="text small" x="594" y="173" text-anchor="middle">wptr_full</text>
+  <text class="text muted" x="594" y="191" text-anchor="middle">write status</text>
+
+  <rect class="sub" x="678" y="150" width="128" height="54"/>
+  <text class="text small" x="742" y="173" text-anchor="middle">rptr_empty</text>
+  <text class="text muted" x="742" y="191" text-anchor="middle">read status</text>
+
+  <rect class="sub" x="456" y="222" width="128" height="44"/>
+  <text class="text small" x="520" y="248" text-anchor="middle">sync_w2r</text>
+
+  <rect class="sub" x="604" y="222" width="128" height="44"/>
+  <text class="text small" x="668" y="248" text-anchor="middle">sync_r2w</text>
+
+  <path class="line" d="M252,73 C288,73 305,104 345,114"/>
+  <path class="line" d="M252,177 C287,177 309,178 345,180"/>
+  <path class="line" d="M252,281 C288,281 306,251 345,238"/>
+
+  <rect class="util" x="346" y="20" width="200" height="38"/>
+  <text class="text small" x="446" y="44" text-anchor="middle">async_reset_sync utility</text>
+  <path class="dash" d="M446,58 C360,70 330,80 252,82"/>
+  <path class="dash" d="M446,58 C356,118 330,154 252,170"/>
+  <path class="dash" d="M446,58 C356,178 330,242 252,274"/>
+
+  <text class="text muted" x="610" y="324" text-anchor="middle">Only registered Gray pointers cross clock domains; payload stays in RAM.</text>
+</svg>
