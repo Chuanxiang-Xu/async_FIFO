@@ -1,6 +1,6 @@
 CAPI=2:
 
-name: ::async_fifo:1.0.0
+name: ::async_fifo:1.1.0
 description: Parameterized asynchronous FIFO RTL with FWFT, width conversion, and stream wrappers
 
 filesets:

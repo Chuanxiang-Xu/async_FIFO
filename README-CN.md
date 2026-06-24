@@ -50,7 +50,7 @@
 | RTL 阅读者 | [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md) | [学习异步 FIFO](docs/learning_async_fifo_CN.md) |
 | 验证读者 | [学习异步 FIFO](docs/learning_async_fifo_CN.md) | [形式验证指南](docs/formal_verification_CN.md) |
 | Vendor IP 对比读者 | [接口与时序](docs/interface.md) | [XPM_FIFO_ASYNC 对比](docs/xpm_fifo_async_comparison_CN.md) |
-| 未来 FWFT 贡献者 | [接口与时序](docs/interface.md) | [FWFT / Fallthrough 设计说明](docs/fwft_design_CN.md) |
+| FWFT 用户或维护者 | [接口与时序](docs/interface.md) | [FWFT / Fallthrough 设计说明](docs/fwft_design_CN.md) |
 | CDC/时序审阅者 | [架构说明](docs/architecture.md) | [CDC 约束](docs/cdc_constraints.md) |
 | 板级流程使用者 | [简单板级 demo](#简单板级-demo) | [PYNQ-Z2 Vivado 验证](docs/pynq_z2_vivado.md) |
 
@@ -133,7 +133,7 @@ production sign-off 包。
 6. **CDC 约束**：payload 保存在双口 RAM 中，只有寄存后的格雷码指针跨域。
    两级同步器不能替代 STA/CDC 签核；实现工程必须约束格雷码总线到第一级
    同步器的最大延迟或总线偏斜。
-7. **验证边界**：仿真和 45 项形式验证任务结合了固定深层时钟调度、符号化
+7. **验证边界**：仿真和 47 项形式验证任务结合了固定深层时钟调度、符号化
    时钟频率/相位 BMC 和具体参数矩阵，但不构成一个同时覆盖所有整数参数、
    连续变化时钟波形和所有目标器件的符号化证明。
 

@@ -7,6 +7,24 @@ Versioning.
 
 No unreleased changes yet.
 
+## [1.1.0] - 2026-06-24
+
+- Added `async_fifo_fwft`, an equal-width first-word-fall-through wrapper that
+  keeps the Cummings-style CDC core unchanged and adds read-side prefetch
+  storage.
+- Added directed FWFT simulations covering first-word visibility, output
+  stability under backpressure, continuous pop order, empty pop attempts, and
+  read reset clearing.
+- Added FWFT formal BMC/cover tasks for pop ordering, no duplication/loss,
+  stalled-output stability, visible `empty`, and reset clearing.
+- Added Cummings/Sunburst concept-to-RTL mapping documentation in English and
+  Chinese.
+- Added FWFT design notes, standard-vs-FWFT tutorial timing, and a
+  documentation index.
+- Updated interface, formal, XPM comparison, README, FuseSoC, and contributor
+  documentation for the FWFT wrapper.
+- Surfaced the GitHub Actions RTL checks badge in the README files.
+
 ## [1.0.0] - 2026-06-23
 
 - Reorganized RTL into `core/`, `wrappers/`, and `util/` layers while keeping

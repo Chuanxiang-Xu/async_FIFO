@@ -1,20 +1,21 @@
 # FWFT / Fallthrough 设计说明
 
-本文先定义 first-word-fall-through 行为，再决定是否修改 RTL。当前 RTL 仍然是
-standard 同步读 FIFO；本文是未来 mode 或 wrapper 的设计契约。
+本文定义 `async_fifo_fwft` 已实现的 first-word-fall-through 行为。基础
+`async_fifo` 模块仍然保持 standard 同步读 FIFO；FWFT 作为等宽读侧 wrapper
+提供，包在未改动的 Cummings 风格 CDC core 外面。
 
 ## 当前状态
 
 | 项目 | 状态 |
 |---|---|
 | standard 同步读 | 已实现 |
-| FWFT / fallthrough 读模式 | 已实现等宽草案 wrapper |
+| FWFT / fallthrough 读模式 | 已实现等宽 wrapper |
 | RTL 参数或 wrapper | `rtl/wrappers/async_fifo_fwft.v` |
 | directed tests | `test/tb_fifo_fwft.sv` |
 | formal properties | `formal/fwft_formal.sv` 和 `formal/fwft.sby` |
 
-目标是在不扰动 Cummings 风格 CDC core 的前提下加入 FWFT。当前草案是在现有等宽
-core 外面增加读侧 wrapper 逻辑。
+这个 wrapper 在不扰动 Cummings 风格 CDC core 的前提下加入 FWFT 行为。实现方式
+是在现有等宽 core 外面增加读侧 prefetch 和输出槽逻辑。
 
 ## 基线：当前 Standard Read
 
@@ -37,11 +38,11 @@ rd_valid                   标记 rd_data 有效的周期
 
 这个行为的权威定义见[接口与时序](interface.md)。
 
-## 目标：FWFT Read
+## FWFT Read
 
 FWFT 把读侧用户契约从“请求然后收到数据”改成“先看到数据，然后消费数据”。
 
-未来 FWFT 模式的目标语义是：
+已实现 FWFT wrapper 的语义是：
 
 ```text
 rd_valid == 1             rd_data 上有一个可读数据字
@@ -63,9 +64,9 @@ empty == !rd_valid        用户当前看不到可读数据
 | 第一个数据延迟 | 用户先请求，再等 `rd_valid` | 逻辑预取，用户等待 `rd_valid` |
 | 反压 | 用户不拉 `rd_en` | 用户不拉 `rd_en`，有效数据保持稳定 |
 
-## 建议内部模型
+## 内部模型
 
-当前草案保持 `async_fifo_core` 为 standard 模式，在读侧增加预取层：
+`async_fifo_fwft` 保持 `async_fifo_core` 为 standard 模式，并在读侧增加预取层：
 
 ```text
 async_fifo_core
@@ -97,7 +98,7 @@ rd_rstn && !core_empty && 输出槽可以接收新数据
 
 ## 等宽 FWFT 契约
 
-未来等宽 FWFT 模式的公开读侧行为建议定义为：
+等宽 FWFT wrapper 的公开读侧行为定义为：
 
 | 信号 | FWFT 含义 |
 |---|---|
@@ -108,7 +109,7 @@ rd_rstn && !core_empty && 输出槽可以接收新数据
 | `almost_empty` | 提前流控提示，不是 pop 条件 |
 | `rd_used` | 本地读侧估计；必须说明是否包含输出槽 |
 
-当前草案在用户行为上暴露 `empty = !rd_valid`，并将 `rd_used` 定义为 core 读侧
+该 wrapper 在用户行为上暴露 `empty = !rd_valid`，并将 `rd_used` 定义为 core 读侧
 视图加上可见槽、备用槽和 pending internal fetch。
 
 ## 稳定性规则
@@ -156,26 +157,25 @@ AMD/Xilinx `XPM_FIFO_ASYNC` 通过 `READ_MODE` 支持 standard 和 FWFT。本项
 effective depth、读延迟参数、busy 端口、ECC、programmable flags 等 vendor 细节
 仍然不在范围内，除非它们服务于教学路径。
 
-## 推荐实现路径
+## 已实现结构
 
-1. 保持 `async_fifo_core` standard 且不变。
+1. `async_fifo_core` 保持 standard 且不变。
 2. 读侧 prefetch 逻辑包含：
    - 一个可见输出槽；
    - 一个备用预取槽；
    - 一个 pending internal-read bit；
    - stall 时稳定的 `rd_data`；
    - 用户侧 `empty = !rd_valid`。
-3. 增加 directed tests，覆盖第一个数据自动可见、反压稳定、连续读取、复位清空、
+3. directed tests 覆盖第一个数据自动可见、反压稳定、连续读取、复位清空、
    空时 pop 非破坏。
-4. 将覆盖顺序、不重复 fetch、不丢数据、stall 时输出稳定和复位清空的 formal
-   properties 保持在回归中。
-5. 增加 standard 和 FWFT 读时序对比波形。
-6. wrapper 行为被测试和证明后，再决定是否给公开 `async_fifo` 增加 `READ_MODE`
-   参数。
+4. formal properties 覆盖顺序、不重复 fetch、不丢数据、stall 时输出稳定和复位清空。
+5. tutorial 波形对比 standard 和 FWFT 读时序。
+6. `async_fifo` 继续保持 standard 读契约；`async_fifo_fwft` 是公开的等宽 FWFT
+   入口。
 
-## 测试计划
+## 验证覆盖
 
-最小 directed 场景：
+directed simulations 覆盖这些场景：
 
 | 场景 | 期望行为 |
 |---|---|
@@ -186,7 +186,7 @@ effective depth、读延迟参数、busy 端口、ECC、programmable flags 等 v
 | 空时 pop 尝试 | `rd_valid == 0` 时拉 `rd_en` 非破坏。 |
 | 可见数据期间复位 | 复位清除 `rd_valid`；旧 `rd_data` 不再有意义。 |
 
-formal properties 应该对应同一份契约：
+formal properties 对应同一份契约：
 
 - 被接受的写入进入期望序列；
 - FWFT pop 返回最老的期望数据；
@@ -194,14 +194,13 @@ formal properties 应该对应同一份契约：
 - stall 时输出数据稳定；
 - 读复位期间不得断言 `rd_valid`。
 
-## RTL 前需要决定的问题
+## 仍需决定的问题
 
-- FWFT 是否应该长期保持为单独模块 `async_fifo_fwft`，还是最终变成 `async_fifo`
+- FWFT 是否应该永久保持为单独模块 `async_fifo_fwft`，还是未来变成 `async_fifo`
   的参数？
 - 当前 `rd_used` 包含两个读侧槽和 pending fetch 的定义是否适合作为长期公开契约？
-- 初版 FWFT 是否只支持等宽 FIFO，wrapper 以后再扩展？
+- FWFT 是否应该在未来支持 width-conversion wrapper，还是保持等宽限定？
 - stream 模式是否复用同一套 prefetch 层，还是继续保持自己的 ready/valid 实现？
 
-保守建议：继续把等宽 FWFT wrapper 保持为独立模块。当前 `async_fifo` 的契约先
-不变，等 FWFT 行为通过 formal 和波形文档验证后，再决定是否把 `READ_MODE`
-参数并入公开入口。
+保守建议：继续把等宽 FWFT wrapper 保持为独立模块。当前 `async_fifo` 的契约保持
+不变，除非未来 release 有明确理由再加入 `READ_MODE` 参数。

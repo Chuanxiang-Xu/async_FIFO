@@ -53,7 +53,7 @@ then read
 | RTL reader | [Cummings-Style FIFO Mapping](docs/cummings_mapping.md) | [Learning Async FIFO](docs/learning_async_fifo.md) |
 | Verification reader | [Learning Async FIFO](docs/learning_async_fifo.md) | [Formal Verification Guide](docs/formal_verification.md) |
 | Vendor-IP comparer | [Interface and Timing](docs/interface.md) | [XPM_FIFO_ASYNC Comparison](docs/xpm_fifo_async_comparison.md) |
-| Future FWFT contributor | [Interface and Timing](docs/interface.md) | [FWFT / Fallthrough Design Notes](docs/fwft_design.md) |
+| FWFT user or maintainer | [Interface and Timing](docs/interface.md) | [FWFT / Fallthrough Design Notes](docs/fwft_design.md) |
 | CDC/timing reviewer | [Architecture](docs/architecture.md) | [CDC Constraints](docs/cdc_constraints.md) |
 | Board-flow user | [Simple board demo](#simple-board-demo) | [PYNQ-Z2 Vivado Validation](docs/pynq_z2_vivado.md) |
 
@@ -150,7 +150,7 @@ The following contracts are mandatory:
    Gray-coded pointers cross domains. Two-flop synchronizers do not replace
    STA/CDC sign-off. Constrain maximum delay or bus skew from each Gray source
    bank to its first synchronizer stage.
-7. **Verification scope:** simulation and 45 formal tasks combine deep fixed
+7. **Verification scope:** simulation and 47 formal tasks combine deep fixed
    schedules, symbolic clock-rate/phase BMCs, and a concrete parameter matrix.
    They are not one symbolic proof over every integer parameter, continuously
    varying clock waveform, or target device.

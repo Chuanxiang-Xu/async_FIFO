@@ -1,22 +1,23 @@
 # FWFT / Fallthrough Design Notes
 
-This document defines the intended first-word-fall-through behavior before any
-RTL change is made. The current RTL remains standard synchronous-read FIFO
-behavior; this note is a design contract for a future mode or wrapper.
+This document defines the implemented first-word-fall-through behavior of
+`async_fifo_fwft`. The base `async_fifo` module remains a standard
+synchronous-read FIFO; FWFT is provided as an equal-width read-side wrapper
+around the unchanged Cummings-style CDC core.
 
 ## Status
 
 | Item | Status |
 |---|---|
 | Standard synchronous read | Implemented |
-| FWFT / fallthrough read mode | Draft equal-width wrapper implemented |
+| FWFT / fallthrough read mode | Implemented as an equal-width wrapper |
 | RTL parameter or wrapper | `rtl/wrappers/async_fifo_fwft.v` |
 | Directed tests | `test/tb_fifo_fwft.sv` |
 | Formal properties | `formal/fwft_formal.sv` and `formal/fwft.sby` |
 
-The goal is to add FWFT without disturbing the Cummings-style CDC core. The
-current draft does this as read-side wrapper logic around the existing
-equal-width core.
+The wrapper adds FWFT behavior without disturbing the Cummings-style CDC core.
+It implements the fallthrough behavior as read-side prefetch and output-slot
+logic around the existing equal-width core.
 
 ## Baseline: Current Standard Read
 
@@ -41,12 +42,12 @@ In this mode:
 
 This is the behavior documented in [Interface and Timing](interface.md).
 
-## Target: FWFT Read
+## FWFT Read
 
 FWFT changes the read-side user contract from "request then receive" to
 "observe then consume".
 
-In the intended FWFT mode:
+In the implemented FWFT wrapper:
 
 ```text
 rd_valid == 1             rd_data holds a readable word
@@ -70,9 +71,10 @@ sink:
 | First word latency | User must request, then observe `rd_valid` | Logic prefetches; user observes `rd_valid` |
 | Backpressure | User withholds `rd_en` | User withholds `rd_en`, valid data remains stable |
 
-## Proposed Internal Model
+## Internal Model
 
-The draft keeps `async_fifo_core` in standard mode and adds a read-side prefetch layer:
+`async_fifo_fwft` keeps `async_fifo_core` in standard mode and adds a read-side
+prefetch layer:
 
 ```text
 async_fifo_core
@@ -105,7 +107,7 @@ yet returned by core `rd_valid`.
 
 ## Equal-Width FWFT Contract
 
-For a future equal-width FWFT mode, define the public read-side behavior as:
+The equal-width FWFT wrapper defines the public read-side behavior as:
 
 | Signal | FWFT meaning |
 |---|---|
@@ -116,7 +118,7 @@ For a future equal-width FWFT mode, define the public read-side behavior as:
 | `almost_empty` | Advisory core/read-side occupancy hint, not a pop qualifier |
 | `rd_used` | Local read-domain estimate; must document whether it includes the output slot |
 
-The draft exposes `empty = !rd_valid` for user behavior. It defines `rd_used`
+The wrapper exposes `empty = !rd_valid` for user behavior. It defines `rd_used`
 as the core read-domain view plus the visible slot, spare slot, and pending
 internal fetch.
 
@@ -170,26 +172,28 @@ Vendor-specific details such as exact effective depth, read latency parameters,
 busy ports, ECC, and programmable flags remain out of scope unless they serve
 the teaching path.
 
-## Recommended Implementation Path
+## Implemented Structure
 
-1. Keep `async_fifo_core` standard and unchanged.
-2. Implement read-side prefetch with:
+The 1.1.0 implementation follows this structure:
+
+1. `async_fifo_core` stays standard and unchanged.
+2. The read-side prefetch layer includes:
    - one visible output slot;
    - one spare prefetched slot;
    - one pending internal-read bit;
    - stable `rd_data` while stalled;
    - user `empty = !rd_valid`.
-3. Add directed tests for first-word visibility, backpressure stability,
+3. Directed tests cover first-word visibility, backpressure stability,
    continuous reads, reset clearing, and blocked empty pops.
-4. Keep formal properties for ordering, no duplicate fetch, no dropped word,
-   output stability while stalled, and reset clearing in regression.
-5. Add a tutorial waveform comparing standard and FWFT read timing.
-6. Only after the wrapper behavior is proven, decide whether the public
-   `async_fifo` should gain a `READ_MODE` parameter.
+4. Formal properties cover ordering, no duplicate fetch, no dropped word,
+   output stability while stalled, and reset clearing.
+5. The tutorial waveform compares standard and FWFT read timing.
+6. `async_fifo` keeps its standard read contract; `async_fifo_fwft` is the
+   public equal-width FWFT entry point.
 
-## Test Plan
+## Verification Coverage
 
-Minimum directed scenarios:
+Directed simulations cover these scenarios:
 
 | Scenario | Expected behavior |
 |---|---|
@@ -200,7 +204,7 @@ Minimum directed scenarios:
 | Empty pop attempt | `rd_en` while `rd_valid == 0` is non-destructive. |
 | Reset during visible word | Reset clears `rd_valid`; old `rd_data` is not meaningful. |
 
-Formal properties should mirror the same contract:
+Formal properties mirror the same contract:
 
 - accepted writes increase the expected sequence;
 - FWFT pops return the oldest expected word;
@@ -209,16 +213,16 @@ Formal properties should mirror the same contract:
 - stalled output data is stable;
 - no `rd_valid` is asserted during read reset.
 
-## Open Decisions Before RTL
+## Open Decisions
 
-- Should FWFT stay a separate module, `async_fifo_fwft`, or eventually become
-  a parameter on `async_fifo`?
+- Should FWFT stay permanently as a separate module, `async_fifo_fwft`, or
+  eventually become a parameter on `async_fifo`?
 - Is the current `rd_used` definition, including both slots and pending fetch,
   the right long-term public contract?
-- Should FWFT initially support only equal-width FIFO, then wrappers later?
+- Should FWFT support width-conversion wrappers later, or stay equal-width only?
 - Should stream mode reuse the same prefetch layer, or remain its own
   ready/valid implementation?
 
 Conservative recommendation: keep the equal-width FWFT wrapper separate. Keep
-the current `async_fifo` contract unchanged until the FWFT behavior is formally
-checked and documented with a waveform.
+the current `async_fifo` contract unchanged unless a later release has a clear
+reason to add a `READ_MODE` parameter.

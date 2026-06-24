@@ -1,6 +1,6 @@
 # Compatibility and Release Support
 
-Current RTL release: `1.0.0`.
+Current RTL release: `1.1.0`.
 
 ## Verified tool and target matrix
 
@@ -26,6 +26,7 @@ Registration and service-environment instructions are in
 ## Supported public RTL
 
 - `async_fifo`
+- `async_fifo_fwft`
 - `async_fifo_width_conv`
 - `async_fifo_stream`
 - `async_reset_sync`
@@ -34,10 +35,10 @@ The FIFO modules require power-of-two core depth. Width conversion supports
 integer power-of-two ratios. Reset is destructive and coordinated; unilateral
 runtime reset with retained data is not supported.
 
-Formal release coverage currently contains 45 tasks: fixed deep harnesses,
+Formal release coverage currently contains 47 tasks: fixed deep harnesses,
 two symbolic clock-rate/phase core BMCs, a 20-task concrete wrapper matrix,
-and associated cover tasks. Verilator `-Wall` is warning-free and warnings
-are treated as CI failures.
+the FWFT wrapper BMC/cover pair, and associated cover tasks. Verilator `-Wall`
+is warning-free and warnings are treated as CI failures.
 
 ## Xilinx integration requirements
 
