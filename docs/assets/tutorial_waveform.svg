@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="420" viewBox="0 0 980 420" role="img" aria-labelledby="title desc">
+<title id="title">Tutorial async FIFO waveform from simulation</title>
+<desc id="desc">Icarus Verilog VCD waveform for a depth-four async FIFO showing write enable, read enable, full, empty, and read valid.</desc>
+<defs><style>.bg{fill:#0b1020}.grid{stroke:#243044;stroke-width:1}.axis{stroke:#526179;stroke-width:1}.label{font-family:monospace;font-size:13px;fill:#e5edf7}.small{font-family:monospace;font-size:11px;fill:#b7c4d8}.note{font-family:Arial,sans-serif;font-size:13px;fill:#d7e1f0}.bus{fill:#102a1f;stroke:#22c55e;stroke-width:1.4}.tag{fill:#182133;stroke:#46556f;stroke-width:1}.tagtext{font-family:monospace;font-size:11px;fill:#dbeafe}</style></defs>
+<rect class="bg" width="980" height="420"/>
+<text class="note" x="122" y="24">Generated from test/tb_fifo_tutorial.sv with Icarus Verilog; time window 20ns to 205ns.</text>
+<line class="grid" x1="122.0" y1="38" x2="122.0" y2="382"/>
+<text class="small" x="122.0" y="400" text-anchor="middle">20</text>
+<line class="grid" x1="166.2" y1="38" x2="166.2" y2="382"/>
+<line class="grid" x1="210.4" y1="38" x2="210.4" y2="382"/>
+<text class="small" x="210.4" y="400" text-anchor="middle">40</text>
+<line class="axis" x1="254.6" y1="38" x2="254.6" y2="382"/>
+<line class="grid" x1="298.9" y1="38" x2="298.9" y2="382"/>
+<text class="small" x="298.9" y="400" text-anchor="middle">60</text>
+<line class="grid" x1="343.1" y1="38" x2="343.1" y2="382"/>
+<line class="grid" x1="387.3" y1="38" x2="387.3" y2="382"/>
+<text class="small" x="387.3" y="400" text-anchor="middle">80</text>
+<line class="grid" x1="431.5" y1="38" x2="431.5" y2="382"/>
+<line class="axis" x1="475.7" y1="38" x2="475.7" y2="382"/>
+<text class="small" x="475.7" y="400" text-anchor="middle">100</text>
+<line class="grid" x1="519.9" y1="38" x2="519.9" y2="382"/>
+<line class="grid" x1="564.2" y1="38" x2="564.2" y2="382"/>
+<text class="small" x="564.2" y="400" text-anchor="middle">120</text>
+<line class="grid" x1="608.4" y1="38" x2="608.4" y2="382"/>
+<line class="grid" x1="652.6" y1="38" x2="652.6" y2="382"/>
+<text class="small" x="652.6" y="400" text-anchor="middle">140</text>
+<line class="axis" x1="696.8" y1="38" x2="696.8" y2="382"/>
+<line class="grid" x1="741.0" y1="38" x2="741.0" y2="382"/>
+<text class="small" x="741.0" y="400" text-anchor="middle">160</text>
+<line class="grid" x1="785.2" y1="38" x2="785.2" y2="382"/>
+<line class="grid" x1="829.5" y1="38" x2="829.5" y2="382"/>
+<text class="small" x="829.5" y="400" text-anchor="middle">180</text>
+<line class="grid" x1="873.7" y1="38" x2="873.7" y2="382"/>
+<line class="axis" x1="917.9" y1="38" x2="917.9" y2="382"/>
+<text class="small" x="917.9" y="400" text-anchor="middle">200</text>
+<text class="small" x="940" y="400" text-anchor="end">ns</text>
+<text class="label" x="24" y="63">wr_clk</text>
+<line class="grid" x1="122" y1="74" x2="940" y2="74"/>
+<path d="M122.0 69.0 L144.1 69.0 L144.1 47.0 L166.2 47.0 L166.2 69.0 L188.3 69.0 L188.3 47.0 L210.4 47.0 L210.4 69.0 L232.5 69.0 L232.5 47.0 L254.6 47.0 L254.6 69.0 L276.8 69.0 L276.8 47.0 L298.9 47.0 L298.9 69.0 L321.0 69.0 L321.0 47.0 L343.1 47.0 L343.1 69.0 L365.2 69.0 L365.2 47.0 L387.3 47.0 L387.3 69.0 L409.4 69.0 L409.4 47.0 L431.5 47.0 L431.5 69.0 L453.6 69.0 L453.6 47.0 L475.7 47.0 L475.7 69.0 L497.8 69.0 L497.8 47.0 L519.9 47.0 L519.9 69.0 L542.1 69.0 L542.1 47.0 L564.2 47.0 L564.2 69.0 L586.3 69.0 L586.3 47.0 L608.4 47.0 L608.4 69.0 L630.5 69.0 L630.5 47.0 L652.6 47.0 L652.6 69.0 L674.7 69.0 L674.7 47.0 L696.8 47.0 L696.8 69.0 L718.9 69.0 L718.9 47.0 L741.0 47.0 L741.0 69.0 L763.1 69.0 L763.1 47.0 L785.2 47.0 L785.2 69.0 L807.4 69.0 L807.4 47.0 L829.5 47.0 L829.5 69.0 L851.6 69.0 L851.6 47.0 L873.7 47.0 L873.7 69.0 L895.8 69.0 L895.8 47.0 L917.9 47.0 L917.9 69.0 L940.0 69.0 L940.0 47.0 L940.0 47.0" fill="none" stroke="#38bdf8" stroke-width="2.1" stroke-linejoin="round"/>
+<text class="label" x="24" y="101">wr_en</text>
+<line class="grid" x1="122" y1="112" x2="940" y2="112"/>
+<path d="M122.0 107.0 L166.2 107.0 L166.2 85.0 L210.4 85.0 L210.4 107.0 L254.6 107.0 L254.6 85.0 L298.9 85.0 L298.9 107.0 L343.1 107.0 L343.1 85.0 L387.3 85.0 L387.3 107.0 L431.5 107.0 L431.5 85.0 L475.7 85.0 L475.7 107.0 L519.9 107.0 L519.9 85.0 L608.4 85.0 L608.4 107.0 L940.0 107.0 L940.0 107.0" fill="none" stroke="#34d399" stroke-width="2.1" stroke-linejoin="round"/>
+<text class="label" x="24" y="139">wr_data</text>
+<line class="grid" x1="122" y1="150" x2="940" y2="150"/>
+<rect class="bus" x="122.0" y="121" width="44.2" height="26"/>
+<text class="small" x="144.1" y="138" text-anchor="middle">00</text>
+<rect class="bus" x="166.2" y="121" width="88.4" height="26"/>
+<text class="small" x="210.4" y="138" text-anchor="middle">A0</text>
+<rect class="bus" x="254.6" y="121" width="88.4" height="26"/>
+<text class="small" x="298.9" y="138" text-anchor="middle">A1</text>
+<rect class="bus" x="343.1" y="121" width="88.4" height="26"/>
+<text class="small" x="387.3" y="138" text-anchor="middle">A2</text>
+<rect class="bus" x="431.5" y="121" width="88.4" height="26"/>
+<text class="small" x="475.7" y="138" text-anchor="middle">A3</text>
+<rect class="bus" x="519.9" y="121" width="420.1" height="26"/>
+<text class="small" x="730.0" y="138" text-anchor="middle">EE</text>
+<text class="label" x="24" y="177">full</text>
+<line class="grid" x1="122" y1="188" x2="940" y2="188"/>
+<path d="M122.0 183.0 L453.6 183.0 L453.6 161.0 L807.4 161.0 L807.4 183.0 L940.0 183.0 L940.0 183.0" fill="none" stroke="#f59e0b" stroke-width="2.1" stroke-linejoin="round"/>
+<text class="label" x="24" y="215">rd_clk</text>
+<line class="grid" x1="122" y1="226" x2="940" y2="226"/>
+<path d="M122.0 221.0 L126.4 221.0 L126.4 199.0 L157.4 199.0 L157.4 221.0 L188.3 221.0 L188.3 199.0 L219.3 199.0 L219.3 221.0 L250.2 221.0 L250.2 199.0 L281.2 199.0 L281.2 221.0 L312.1 221.0 L312.1 199.0 L343.1 199.0 L343.1 221.0 L374.0 221.0 L374.0 199.0 L405.0 199.0 L405.0 221.0 L435.9 221.0 L435.9 199.0 L466.9 199.0 L466.9 221.0 L497.8 221.0 L497.8 199.0 L528.8 199.0 L528.8 221.0 L559.7 221.0 L559.7 199.0 L590.7 199.0 L590.7 221.0 L621.6 221.0 L621.6 199.0 L652.6 199.0 L652.6 221.0 L683.5 221.0 L683.5 199.0 L714.5 199.0 L714.5 221.0 L745.4 221.0 L745.4 199.0 L776.4 199.0 L776.4 221.0 L807.4 221.0 L807.4 199.0 L838.3 199.0 L838.3 221.0 L869.3 221.0 L869.3 199.0 L900.2 199.0 L900.2 221.0 L931.2 221.0 L931.2 199.0 L940.0 199.0 L940.0 199.0" fill="none" stroke="#a78bfa" stroke-width="2.1" stroke-linejoin="round"/>
+<text class="label" x="24" y="253">empty</text>
+<line class="grid" x1="122" y1="264" x2="940" y2="264"/>
+<path d="M122.0 237.0 L374.0 237.0 L374.0 259.0 L940.0 259.0 L940.0 259.0" fill="none" stroke="#f59e0b" stroke-width="2.1" stroke-linejoin="round"/>
+<text class="label" x="24" y="291">rd_en</text>
+<line class="grid" x1="122" y1="302" x2="940" y2="302"/>
+<path d="M122.0 297.0 L652.6 297.0 L652.6 275.0 L714.5 275.0 L714.5 297.0 L776.4 297.0 L776.4 275.0 L838.3 275.0 L838.3 297.0 L940.0 297.0 L940.0 297.0" fill="none" stroke="#34d399" stroke-width="2.1" stroke-linejoin="round"/>
+<text class="label" x="24" y="329">rd_valid</text>
+<line class="grid" x1="122" y1="340" x2="940" y2="340"/>
+<path d="M122.0 335.0 L683.5 335.0 L683.5 313.0 L745.4 313.0 L745.4 335.0 L807.4 335.0 L807.4 313.0 L869.3 313.0 L869.3 335.0 L940.0 335.0 L940.0 335.0" fill="none" stroke="#14b8a6" stroke-width="2.1" stroke-linejoin="round"/>
+<text class="label" x="24" y="367">rd_data</text>
+<line class="grid" x1="122" y1="378" x2="940" y2="378"/>
+<rect class="bus" x="122.0" y="349" width="561.5" height="26"/>
+<text class="small" x="402.8" y="366" text-anchor="middle">x</text>
+<rect class="bus" x="683.5" y="349" width="123.8" height="26"/>
+<text class="small" x="745.4" y="366" text-anchor="middle">A0</text>
+<rect class="bus" x="807.4" y="349" width="132.6" height="26"/>
+<text class="small" x="873.7" y="366" text-anchor="middle">A1</text>
+<line x1="166.2" y1="38" x2="166.2" y2="382" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="254.6" y1="38" x2="254.6" y2="382" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="343.1" y1="38" x2="343.1" y2="382" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="431.5" y1="38" x2="431.5" y2="382" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="453.6" y1="38" x2="453.6" y2="382" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="519.9" y1="38" x2="519.9" y2="382" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="683.5" y1="38" x2="683.5" y2="382" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="807.4" y1="38" x2="807.4" y2="382" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<rect class="tag" x="424.6" y="32" width="58" height="18" rx="4"/>
+<text class="tagtext" x="453.6" y="45" text-anchor="middle">full=1</text>
+<rect class="tag" x="481.9" y="364" width="76" height="18" rx="4"/>
+<text class="tagtext" x="519.9" y="377" text-anchor="middle">EE blocked</text>
+<rect class="tag" x="649.5" y="364" width="68" height="18" rx="4"/>
+<text class="tagtext" x="683.5" y="377" text-anchor="middle">read A0</text>
+<rect class="tag" x="773.4" y="364" width="68" height="18" rx="4"/>
+<text class="tagtext" x="807.4" y="377" text-anchor="middle">read A1</text>
+</svg>

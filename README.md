@@ -7,7 +7,10 @@ constraints, wrappers, simulation/formal checks, and a small PYNQ-Z2 board
 demo.
 
 [Use it](#which-module-should-i-use) ·
+[Tutorial](docs/tutorial.md) ·
 [Learn it](docs/learning_async_fifo.md) ·
+[Formal](docs/formal_verification.md) ·
+[XPM comparison](docs/xpm_fifo_async_comparison.md) ·
 [Interface](docs/interface.md) ·
 [Architecture](docs/architecture.md) ·
 [CDC constraints](docs/cdc_constraints.md) ·
@@ -31,8 +34,25 @@ explicit; they add protocol behavior around the same equal-width core.
 Detailed timing, reset, almost-flag, and occupancy semantics are centralized in
 [Interface and Timing](docs/interface.md). The implementation layers are shown
 in [Architecture](docs/architecture.md). If you want to study the design rather
-than only instantiate it, start with
+than only instantiate it, start with the [step-by-step tutorial](docs/tutorial.md),
+then read
 [Learning Async FIFO](docs/learning_async_fifo.md).
+
+## Learning roadmap
+
+| Reader | Start here | Then read |
+|---|---|---|
+| First-time async FIFO learner | [Step-by-step tutorial](docs/tutorial.md) | [Learning Async FIFO](docs/learning_async_fifo.md) |
+| RTL integrator | [Which module should I use?](#which-module-should-i-use) | [Interface and Timing](docs/interface.md) |
+| Verification reader | [Learning Async FIFO](docs/learning_async_fifo.md) | [Formal Verification Guide](docs/formal_verification.md) |
+| Vendor-IP comparer | [Interface and Timing](docs/interface.md) | [XPM_FIFO_ASYNC Comparison](docs/xpm_fifo_async_comparison.md) |
+| CDC/timing reviewer | [Architecture](docs/architecture.md) | [CDC Constraints](docs/cdc_constraints.md) |
+| Board-flow user | [Simple board demo](#simple-board-demo) | [PYNQ-Z2 Vivado Validation](docs/pynq_z2_vivado.md) |
+
+The core async FIFO structure follows the well-known Cummings/Sunburst
+style: binary pointers for local arithmetic, Gray pointers for CDC, two-flop
+pointer synchronizers, and local-domain full/empty generation. See
+[Theory references](#theory-references) for the paper links.
 
 ## Architecture at a glance
 
@@ -323,292 +343,36 @@ The extra `R` narrow-word equivalents are one wrapper-local wide word, not
 additional addressable RAM. See [Interface and Timing](docs/interface.md) for
 the stream wrapper's separate write/read pipeline bound.
 
-## 3. What does an asynchronous FIFO solve?
-
-The write and read interfaces run in independent clock domains. The FIFO provides:
-
-1. safe data transfer between those domains;
-2. buffering when the producer and consumer have different instantaneous rates;
-3. integer width conversion in the wrapper.
-
-The payload is stored in dual-port RAM rather than synchronized bit by bit.
-Only compact, registered Gray-coded pointers cross the boundary; each
-destination domain uses the synchronized remote pointer to make a conservative
-RAM-access decision.
-
-## 3.1 Recommended streaming interface
-
-`async_fifo_stream` adds complete ready/valid handshakes and packet metadata:
-
-```verilog
-// Write domain
-wr_valid, wr_ready, wr_data, wr_keep, wr_last
-
-// Read domain
-rd_valid, rd_ready, rd_data, rd_keep, rd_last
-```
-
-A transfer occurs only on:
-
-```text
-wr_valid && wr_ready
-rd_valid && rd_ready
-```
-
-When `valid=1` and `ready=0`, the source must keep `valid` asserted and hold
-`data`, `keep`, and `last` stable until the handshake. `{data, keep, last}` is
-stored as one FIFO payload, so metadata cannot
-become separated from its data across the clock boundary.
-
-Data widths must be positive multiples of eight. `keep[0]` describes
-`data[7:0]`. The intended packet convention is full `keep` on non-final beats
-and a nonzero, contiguous low-order `keep` mask on the final beat.
-
-## 3.2 Why the write-side elastic buffer improves throughput
-
-`pending_payload` is a one-entry elastic buffer between the write interface
-and `async_fifo_core`:
-
-```text
-write interface -> pack/direct path -> pending_payload -> async FIFO core
-```
-
-The core accepts the pending word when:
-
-```verilog
-pending_pop = pending_valid && !core_full;
-```
-
-The input is ready when the pending register is empty, or when its old word
-will leave on the current edge:
-
-```verilog
-wr_ready = !pending_valid || !core_full;
-```
-
-This creates four relevant state transitions:
-
-| Old pending word leaves | New complete word arrives | Result |
-|---:|---:|---|
-| 0 | 0 | Keep the current pending state |
-| 0 | 1 | Store the new word |
-| 1 | 0 | Clear the pending register |
-| 1 | 1 | Send the old word and replace it with the new word |
-
-The final case removes the former mandatory bubble. While the core has space,
-the direct/equal-width write path can now accept one beat on every `wr_clk`
-edge. In narrow-write mode, ordinary narrow slices continue filling
-`pack_data`; if a slice completes a wide word on the same edge that the old
-pending word leaves, the newly completed word replaces it immediately.
-
-Backpressure remains safe: if `core_full` and `pending_valid` are both high,
-`wr_ready` goes low and the source must hold `wr_data`, `wr_keep`, and
-`wr_last` stable.
-
-### How randomized width conversion is checked
-
-The verification environment contains independent reference models for both
-directions:
-
-- 16-to-32: accepted 16-bit beats are packed little-slice-first; `wr_last`
-  flushes an incomplete wide word and the model generates the expected
-  32-bit `data/keep/last` tuple;
-- 32-to-16: each accepted 32-bit tuple is split into valid low and high
-  16-bit slices; a partial final `keep=0011` produces only the low slice.
-
-Both tests randomize packet length, valid gaps, final `keep`, and read-side
-backpressure. A scoreboard compares every accepted output tuple, not only the
-payload data.
-
-## 4. Why is the pointer one bit wider than the address?
-
-A RAM with `DEPTH = 2^ADDR_WIDTH` needs `ADDR_WIDTH` address bits. Each FIFO pointer has `ADDR_WIDTH + 1` bits.
-
-The low bits address RAM, while the additional MSB records wraparound:
-
-- identical read and write pointers mean empty;
-- a write pointer one full depth ahead of the read pointer means full.
-
-For a depth of eight:
-
-```text
-RAM address width = 3 bits
-FIFO pointer width = 4 bits
-```
-
-## 5. Why use Gray-coded pointers?
-
-A binary increment can change several bits at once:
-
-```text
-0111 -> 1000
-```
-
-If another clock samples during that transition, unequal routing delays can create a mixed value that never existed in the source domain.
-
-Adjacent reflected Gray-code values change only one bit:
-
-```verilog
-gray = (binary >> 1) ^ binary;
-```
-
-Gray coding limits a normal single-step pointer transition to one crossing bit
-and reduces the risk of sampling an incoherent multi-bit transition. It does
-not eliminate metastability, so each pointer still requires a dedicated
-synchronizer chain.
-
-In this project:
-
-- `sync_w2r` synchronizes the write pointer into the read domain;
-- `sync_r2w` synchronizes the read pointer into the write domain;
-- `(* ASYNC_REG = "TRUE" *)` identifies the synchronizer registers to FPGA tools.
-
-## 6. Which pointer crosses into which domain?
-
-Flags are generated in the clock domain where they are consumed.
-
-| Flag | Local domain | Remote pointer required |
-|---|---|---|
-| `empty` | read clock | write pointer |
-| `full` | write clock | read pointer |
-
-```text
-wptr_gray --sync_w2r--> wptr_gray_sync --rptr_empty--> empty
-rptr_gray --sync_r2w--> rptr_gray_sync --wptr_full --> full
-```
-
-Synchronization latency makes the flags conservative:
-
-- after a write, `empty` may take several read clocks to deassert;
-- after a read, `full` may take several write clocks to deassert.
-
-This can temporarily reduce usable capacity, but it must not permit underflow or overflow.
-
-## 7. Empty and full detection
-
-### Empty
-
-The read domain predicts its pointer after the current accepted read:
-
-```verilog
-rptr_bin_next  = rptr_bin + (rinc && !rempty);
-rptr_gray_next = (rptr_bin_next >> 1) ^ rptr_bin_next;
-rempty_next    = (rptr_gray_next == wptr_gray_sync);
-```
-
-Equality means no unread words remain after that operation.
-
-### Full
-
-For a power-of-two reflected-Gray FIFO, a full write pointer matches the synchronized read pointer with its two most significant bits inverted:
-
-```verilog
-FULL_MASK  = {2'b11, {(PTR_WIDTH-2){1'b0}}};
-wfull_next = (wptr_gray_next == (rptr_gray_sync ^ FULL_MASK));
-```
-
-The two-MSB inversion is specific to this Gray-pointer construction; simply inverting the binary wrap bit is not equivalent.
-
-## 8. Why calculate flags from the next pointer?
-
-Each pointer module determines whether the local request is accepted, calculates the next binary pointer, converts it to Gray code, and computes the next registered flag:
-
-```text
-accepted local request
-        ↓
-binary_next
-        ↓
-gray_next
-        ↓
-compare synchronized remote pointer
-        ↓
-register pointer and flag
-```
-
-A write while full and a read while empty do not advance their pointers:
-
-```verilog
-winc && !wfull
-rinc && !rempty
-```
-
-## 9. Dual-port RAM
-
-`fifo_mem` is storage-only. It uses a standard dual-clock simple dual-port RAM inference template:
-
-```verilog
-always @(posedge wclk)
-    if (wclken)
-        mem[waddr] <= wdata;
-
-always @(posedge rclk)
-    if (rclken)
-        rdata <= mem[raddr];
-```
-
-The memory array is intentionally not reset, improving block-RAM inference. Reset pointers and flags prevent stale or unknown locations from being read.
-
-The read port is synchronous. An accepted request updates `rdata` after the read-clock edge, and `async_fifo_core` provides the corresponding `rd_valid` pulse.
-
-## 10. Width conversion
-
-The asynchronous core remains equal-width so every crossing pointer advances by exactly one. Width conversion occurs outside the CDC machinery.
-
-### Narrow write, wide read
-
-Narrow words are packed in the write domain before one wide core write.
-
-For 16-to-32 conversion:
-
-```text
-write 16'h0001, then 16'h0002
-stored core word = 32'h0002_0001
-```
-
-#### Legacy half-pack blocking and its solution
-
-The original `async_fifo_width_conv` wrapper wrote a completed packed word directly into
-the core. If the core became full while a word was partially packed, the last
-narrow slice could not be accepted until the read side released space. This
-was recoverable, but it could participate in a system-level circular wait.
-
-The wrapper now has a one-word completed-data holding register:
-
-```text
-narrow inputs -> packing register -> completed-word holding register
-                                      -> asynchronous FIFO core
-```
-
-Therefore, one complete packed word can be finished even while the core is
-full. Backpressure is asserted only when that holding register is occupied.
-
-`async_fifo_stream` is the preferred solution for new designs. `wr_ready`
-states exactly whether the current input beat can be accepted, `wr_last`
-flushes a partial packed word, and `wr_keep` records which bytes are valid.
-
-### Wide write, narrow read
-
-A wide core word is fetched and buffered in the read domain, then returned one narrow slice at a time.
-
-For 32-to-16 conversion:
-
-```text
-write 32'h1122_3344
-read 16'h3344, then 16'h1122
-```
-
-`fetch_pending` records an outstanding synchronous RAM read. The stream top
-also has current and next read-side payload slots. It prefetches the next core
-word while presenting the current one and can replace a consumed word on the
-same edge that a RAM response returns. After initial fill, equal-width and
-wide-to-narrow streams can sustain one output beat per `rd_clk` while data is
-available.
-
-### Why not advance a crossing pointer by two or four?
-
-Skipping binary addresses can make consecutive transmitted Gray values differ in multiple bits, defeating the single-transition property relied upon by the CDC scheme. Packing and splitting in one local domain avoids that problem.
-
-## 11. Parameter restrictions
+## 3. Theory references
+
+The async FIFO core follows the recommended Cummings/Sunburst structure:
+
+- binary counters are used locally for address arithmetic;
+- binary pointers are converted to reflected Gray code before crossing domains;
+- each Gray pointer is synchronized into the opposite clock domain;
+- `empty` is generated in the read domain and `full` in the write domain;
+- pointer/flag logic predicts the next pointer so registered flags describe
+  whether the next local transfer is legal.
+
+Primary references:
+
+- Clifford E. Cummings, *Simulation and Synthesis Techniques for Asynchronous
+  FIFO Design*, SNUG San Jose 2002, Sunburst Design
+  ([technical-library entry](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf)).
+  This is the closest paper match for this repository's synchronized-pointer
+  comparison style.
+- Clifford E. Cummings and Peter Alfke, *Simulation and Synthesis Techniques
+  for Asynchronous FIFO Design with Asynchronous Pointer Comparisons*, SNUG San
+  Jose 2002
+  ([technical-library entry](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO2.pdf)).
+  This companion paper is useful context, but this repository does not
+  implement its asynchronous pointer-comparison style.
+
+The tutorial gives the waveform-first view. The learning guide gives the
+mechanism in reading order. The interface document is authoritative for
+`rd_valid`, almost flags, wrapper capacity, reset, and transfer acceptance.
+
+## 4. Parameter restrictions
 
 This implementation requires:
 
@@ -643,7 +407,7 @@ write-side payload and up to two prefetched read-side payloads in addition to
 the core. These local slots affect total in-flight data but are intentionally
 excluded from `*_core_used`.
 
-## 12. Mapping eight core questions to this RTL
+## 5. Mapping eight core questions to this RTL
 
 | Study question | Project implementation |
 |---|---|
@@ -656,7 +420,7 @@ excluded from `*_core_used`.
 | Non-power-of-two depth | intentionally unsupported |
 | Large clock-frequency ratios | engineering notes below |
 
-## 13. Engineering notes
+## 6. Engineering notes
 
 ### Conservative empty/full deassertion
 
@@ -691,7 +455,7 @@ should constrain maximum delay or bus skew on each Gray crossing and run STA
 and CDC analysis. The usable clock ratio is ultimately limited by throughput,
 synchronizer MTBF, physical implementation, and system-level flow control.
 
-## 14. Reset considerations
+## 7. Reset considerations
 
 The write and read sides use separate active-low asynchronous resets:
 
@@ -721,7 +485,7 @@ are invalid during reset. Vendor DRC warnings caused by asynchronously reset
 pointers driving block-RAM addresses require a reviewed waiver under these
 conditions; they do not justify data-preserving one-sided reset.
 
-## 15. Interface behavior
+## 8. Interface behavior
 
 A write is accepted only when:
 
@@ -743,7 +507,7 @@ For the precise semantics of `full`, `empty`, the almost flags, and all
 occupancy outputs, see [Interface and Timing](docs/interface.md). That document
 is the single reference for advanced status signals and wrapper-local storage.
 
-## 16. Simulation
+## 9. Simulation
 
 Create and activate the reproducible Conda tool environment:
 
@@ -759,6 +523,23 @@ conda env update -n async_fifo -f environment.yml --prune
 ```
 
 Then run the checks below.
+
+### Quick checks before a PR
+
+| Change area | Start with |
+|---|---|
+| Markdown only | `make docs-check` |
+| Tutorial waveform | `make tutorial` and `make docs-check` |
+| Equal-width FIFO RTL | `make tb_equal_width tb_fifo_random` |
+| Width-conversion wrapper | `make tb_pack_16_to_32 tb_split_32_to_16` |
+| Stream wrapper | `make tb_fifo_random tb_stream_random` |
+| CDC or constraints | `make cdc` and `make synth` |
+| Formal harnesses | the matching `sby -f ...` task, then `make formal` |
+| Release metadata | `make release-check` |
+
+Before opening a broader PR, run `make check` in the `async_fifo` Conda
+environment. See [Contributing](CONTRIBUTING.md) for the full contributor
+checklist.
 
 Run all tests:
 
@@ -892,7 +673,7 @@ PASS: randomized stream 16-to-32 width conversion (... outputs)
 PASS: randomized stream 32-to-16 width conversion (... outputs)
 ```
 
-## 17. Verification and engineering status
+## 10. Verification and engineering status
 
 - [x] equal-width, full, empty, blocked-access, and repeated-wrap tests;
 - [x] reset-time RAM access gating and post-reset recovery test;

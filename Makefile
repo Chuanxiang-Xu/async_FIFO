@@ -39,13 +39,14 @@ TESTS := \
 	tb_stream_random_pack_16_to_32 \
 	tb_stream_random_split_32_to_16
 
-.PHONY: all check test params lint cdc docs-check release-check xilinx-cdc xilinx-runner-check synth formal formal-matrix pynq-z2 clean help $(TESTS)
+.PHONY: all check test tutorial params lint cdc docs-check release-check xilinx-cdc xilinx-runner-check synth formal formal-matrix pynq-z2 clean help $(TESTS)
 
 all: check
 
 help:
 	@echo "Available targets:"
 	@echo "  make test   - run all Icarus Verilog simulations"
+	@echo "  make tutorial - regenerate the tutorial async FIFO VCD"
 	@echo "  make params - verify invalid parameters fail clearly"
 	@echo "  make lint   - lint all public top-level modules with Verilator"
 	@echo "  make cdc    - run source-level synchronizer structure checks"
@@ -64,11 +65,18 @@ check: test params lint cdc docs-check release-check synth formal
 
 test: $(TESTS)
 
+tutorial: $(BUILD_DIR)/tb_fifo_tutorial.out
+	$(VVP) $<
+
 params:
 	bash scripts/check_parameters.sh
 
 $(TESTS): %: $(BUILD_DIR)/%.out
 	$(VVP) $<
+
+$(BUILD_DIR)/tb_fifo_tutorial.out: $(shell sed 's|^|./|' $(RTL_FILES)) test/tb_fifo_tutorial.sv
+	@mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s tb_fifo_tutorial -o $@ -f $(RTL_FILES) test/tb_fifo_tutorial.sv
 
 $(BUILD_DIR)/%.out: $(TEST_FILES) $(shell sed 's|^|./|' $(RTL_FILES))
 	@mkdir -p $(BUILD_DIR)

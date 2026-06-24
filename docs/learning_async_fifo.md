@@ -5,8 +5,35 @@ asynchronous FIFO works, not only instantiate it as reusable IP.
 
 If you only need the integration contract, read
 [Interface and Timing](interface.md). If you want the module hierarchy first,
-read [Architecture](architecture.md). Then come back here and follow the
+read [Architecture](architecture.md). If you want to start from a basic FIFO
+and walk slowly through the waveform, read the
+[step-by-step tutorial](tutorial.md). Then come back here and follow the
 mechanism from problem statement to RTL.
+
+The theoretical baseline is Clifford E. Cummings, *Simulation and Synthesis
+Techniques for Asynchronous FIFO Design*, SNUG San Jose 2002
+([technical-library entry](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf)).
+This repository uses the synchronized-pointer comparison style from that
+family of designs, with wrappers kept outside the CDC core.
+
+## Cummings-style map to this RTL
+
+| Classic concept | Where to see it in this repository |
+|---|---|
+| Local binary write pointer | `wptr_bin` in [`rtl/core/wptr_full.v`](../rtl/core/wptr_full.v) |
+| Local binary read pointer | `rptr_bin` in [`rtl/core/rptr_empty.v`](../rtl/core/rptr_empty.v) |
+| Extra pointer bit | `ADDR_WIDTH + 1` pointer width in [`rtl/core/async_fifo_core.v`](../rtl/core/async_fifo_core.v) |
+| Binary-to-Gray pointer conversion | `wptr_gray_next` and `rptr_gray_next` |
+| Write pointer crossing to read clock | [`rtl/core/sync_w2r.v`](../rtl/core/sync_w2r.v) |
+| Read pointer crossing to write clock | [`rtl/core/sync_r2w.v`](../rtl/core/sync_r2w.v) |
+| Empty generated in read domain | `rempty_next` in [`rtl/core/rptr_empty.v`](../rtl/core/rptr_empty.v) |
+| Full generated in write domain | `wfull_next` in [`rtl/core/wptr_full.v`](../rtl/core/wptr_full.v) |
+| Payload kept out of synchronizers | [`rtl/core/fifo_mem.v`](../rtl/core/fifo_mem.v) |
+
+The important project-specific addition is `rd_valid`. The core RAM uses a
+synchronous read template, so [`rtl/core/async_fifo_core.v`](../rtl/core/async_fifo_core.v)
+registers `rd_valid` from `read_allow` to tell the user when `rd_data` belongs
+to an accepted read.
 
 ## Terminology used in this guide
 
@@ -236,19 +263,21 @@ understand the equal-width FIFO, then study how protocol adapters reuse it.
 
 ## Suggested reading order
 
-1. Read the small integration example in
+1. Read the [step-by-step tutorial](tutorial.md) and run `make tutorial` to
+   connect `wr_en`, `rd_en`, `full`, `empty`, and `rd_valid` with the waveform.
+2. Read the small integration example in
    [`examples/basic_fifo/`](../examples/basic_fifo/).
-2. Read [`rtl/async_fifo.v`](../rtl/async_fifo.v) to see the public entry
+3. Read [`rtl/async_fifo.v`](../rtl/async_fifo.v) to see the public entry
    point.
-3. Read [`rtl/core/async_fifo_core.v`](../rtl/core/async_fifo_core.v) to see
+4. Read [`rtl/core/async_fifo_core.v`](../rtl/core/async_fifo_core.v) to see
    how the pieces connect.
-4. Read [`rtl/core/wptr_full.v`](../rtl/core/wptr_full.v) and
+5. Read [`rtl/core/wptr_full.v`](../rtl/core/wptr_full.v) and
    [`rtl/core/rptr_empty.v`](../rtl/core/rptr_empty.v).
-5. Read [`rtl/core/sync_w2r.v`](../rtl/core/sync_w2r.v) and
+6. Read [`rtl/core/sync_w2r.v`](../rtl/core/sync_w2r.v) and
    [`rtl/core/sync_r2w.v`](../rtl/core/sync_r2w.v).
-6. Read [CDC Constraints](cdc_constraints.md) to connect the RTL idea to FPGA
+7. Read [CDC Constraints](cdc_constraints.md) to connect the RTL idea to FPGA
    implementation.
-7. Read the wrappers only after the equal-width core feels natural.
+8. Read the wrappers only after the equal-width core feels natural.
 
 The mental model to keep while reading the RTL is:
 
@@ -257,3 +286,14 @@ data path:    RAM, indexed by local binary pointers
 control path: Gray pointers crossing clock domains
 status path:  local flags computed from local pointer + synchronized remote pointer
 ```
+
+## References
+
+- Clifford E. Cummings, *Simulation and Synthesis Techniques for Asynchronous
+  FIFO Design*, SNUG San Jose 2002, Sunburst Design
+  ([technical-library entry](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf)).
+- Clifford E. Cummings and Peter Alfke, *Simulation and Synthesis Techniques
+  for Asynchronous FIFO Design with Asynchronous Pointer Comparisons*, SNUG San
+  Jose 2002
+  ([technical-library entry](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO2.pdf)).
+  This companion paper is useful context for alternate async FIFO styles.

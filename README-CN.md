@@ -6,7 +6,10 @@
 和一个简单的 PYNQ-Z2 板级 demo。
 
 [怎么用](#我应该使用哪个模块) ·
-[怎么学](docs/learning_async_fifo_CN.md) ·
+[逐步教程](docs/tutorial_CN.md) ·
+[原理深读](docs/learning_async_fifo_CN.md) ·
+[形式验证](docs/formal_verification_CN.md) ·
+[XPM 对比](docs/xpm_fifo_async_comparison_CN.md) ·
 [接口](docs/interface.md) ·
 [架构](docs/architecture.md) ·
 [CDC 约束](docs/cdc_constraints.md) ·
@@ -29,7 +32,23 @@
 端口、复位、almost flag（预警标志）和 occupancy（占用量）语义集中在
 [接口与时序](docs/interface.md)。
 实现层次见[架构说明](docs/architecture.md)。如果你想通过这个项目学习异步 FIFO
-原理，而不仅是使用 IP，可以从[学习异步 FIFO](docs/learning_async_fifo_CN.md)开始。
+原理，而不仅是使用 IP，建议先看[逐步教程](docs/tutorial_CN.md)，再看
+[学习异步 FIFO](docs/learning_async_fifo_CN.md)。
+
+## 学习路线图
+
+| 读者 | 先看 | 再看 |
+|---|---|---|
+| 第一次学异步 FIFO | [逐步教程](docs/tutorial_CN.md) | [学习异步 FIFO](docs/learning_async_fifo_CN.md) |
+| RTL 集成者 | [我应该使用哪个模块？](#我应该使用哪个模块) | [接口与时序](docs/interface.md) |
+| 验证读者 | [学习异步 FIFO](docs/learning_async_fifo_CN.md) | [形式验证指南](docs/formal_verification_CN.md) |
+| Vendor IP 对比读者 | [接口与时序](docs/interface.md) | [XPM_FIFO_ASYNC 对比](docs/xpm_fifo_async_comparison_CN.md) |
+| CDC/时序审阅者 | [架构说明](docs/architecture.md) | [CDC 约束](docs/cdc_constraints.md) |
+| 板级流程使用者 | [简单板级 demo](#简单板级-demo) | [PYNQ-Z2 Vivado 验证](docs/pynq_z2_vivado.md) |
+
+内核异步 FIFO 结构参考 Cummings/Sunburst 经典风格：本地二进制指针用于地址和
+算术，跨域前转换为格雷码指针，经过两级同步后在本地时钟域产生 `full`/`empty`。
+论文链接见[理论参考](#理论参考)。
 
 ## 架构速览
 
@@ -310,310 +329,32 @@ C = N / R 个内部宽字
 容量。流式 wrapper 还包含独立的写侧和读侧流水槽，精确定义见
 [接口与时序](docs/interface.md)。
 
-## 3. 为什么需要异步 FIFO？
-
-异步 FIFO 的写端和读端工作在不同的时钟域。它主要解决：
-
-1. 不同时钟域之间的数据传输；
-2. 上下游瞬时速率不一致时的数据缓冲；
-3. 在包装层中完成整数倍位宽转换。
-
-数据本身通过双口 RAM 存储，不对整条数据总线逐位同步。跨时钟域传输的是
-位宽较小、已寄存的格雷码指针，接收时钟域根据同步后的远端指针保守地
-判断能否安全访问 RAM。
-
-## 3.1 推荐的流式接口
-
-`async_fifo_stream` 提供完整的 ready/valid 握手和包元数据：
-
-```verilog
-// 写时钟域
-wr_valid, wr_ready, wr_data, wr_keep, wr_last
-
-// 读时钟域
-rd_valid, rd_ready, rd_data, rd_keep, rd_last
-```
-
-仅在下列条件成立时完成一次传输：
-
-```text
-wr_valid && wr_ready
-rd_valid && rd_ready
-```
-
-当 `valid=1` 且 `ready=0` 时，发送方必须保持 `valid` 为高，并保持
-`data`、`keep` 和 `last` 稳定，直到握手完成。
-代码将 `{data, keep, last}` 作为一个完整 payload 写入 FIFO，因此包边界
-和字节有效信息不会在跨时钟域过程中与数据分离。
-
-数据位宽必须是 8 的正整数倍，`keep[0]` 对应 `data[7:0]`。推荐协议约定：
-非末拍的 `keep` 全为 1；末拍使用非零、从低位连续有效的 `keep` 掩码。
-
-## 3.2 写端弹性缓冲为什么能提高吞吐率
-
-`pending_payload` 是写接口和 `async_fifo_core` 之间的一级弹性缓冲：
-
-```text
-写接口 -> 直接/拼包路径 -> pending_payload -> 异步 FIFO 内核
-```
-
-旧 pending 宽字在以下条件成立时进入内核：
-
-```verilog
-pending_pop = pending_valid && !core_full;
-```
-
-当 pending 寄存器为空，或者旧数据会在当前时钟沿离开时，输入端都可以
-继续接收：
-
-```verilog
-wr_ready = !pending_valid || !core_full;
-```
-
-对应四种状态组合：
-
-| 旧 pending 出队 | 新完整宽字到达 | 处理结果 |
-|---:|---:|---|
-| 0 | 0 | 保持当前状态 |
-| 0 | 1 | 保存新宽字 |
-| 1 | 0 | 清空 pending 寄存器 |
-| 1 | 1 | 旧宽字进入内核，新宽字原位补入 |
-
-最后一种情况消除了原有的固定空拍。只要内核还有空间，等宽/直接写路径
-现在可以在每个 `wr_clk` 上升沿接收一拍。窄写模式下，普通窄切片继续写入
-`pack_data`；如果某个切片恰好在旧 pending 离开的同一时钟沿组成完整宽字，
-新宽字会直接替换 pending，不需要额外等待一拍。
-
-反压安全性不变：当 `core_full` 和 `pending_valid` 同时为高时，`wr_ready`
-拉低，发送方必须保持 `wr_data`、`wr_keep` 和 `wr_last` 稳定。
-
-### 变宽随机验证如何建立参考结果
-
-验证环境为两个方向分别建立了独立参考模型：
-
-- 16→32：将已握手的 16-bit 拍按低切片优先拼接；`wr_last` 会冲刷未填满
-  的宽字，模型同时生成期望的 32-bit `data/keep/last`；
-- 32→16：把每个已握手的 32-bit 数据拆成有效的低、高 16-bit 切片；末拍
-  `keep=0011` 时只生成低切片，不生成无效高切片。
-
-两个测试都会随机化包长、valid 间隔、末拍 `keep` 和读端反压。scoreboard
-逐拍比较完整的 `{data, keep, last}`，而不只是比较数据值。
-
-## 4. 为什么指针需要多一位？
-
-深度为 `DEPTH = 2^ADDR_WIDTH` 的 RAM 地址只需要 `ADDR_WIDTH` 位，但 FIFO 指针使用 `ADDR_WIDTH + 1` 位。
-
-低 `ADDR_WIDTH` 位用于访问 RAM，额外的最高位用于记录回环：
-
-- 读写指针完全相同：FIFO 空；
-- 写指针比读指针领先一个完整深度：FIFO 满。
-
-例如深度为 8：
-
-```text
-RAM 地址宽度 = 3 bit
-FIFO 指针宽度 = 4 bit
-```
-
-代码对应：
-
-```verilog
-wire [ADDR_WIDTH-1:0] waddr;
-wire [ADDR_WIDTH:0]   wptr_gray;
-```
-
-## 5. 为什么跨时钟域使用格雷码指针？
-
-二进制计数器递增时可能同时翻转多位，例如：
-
-```text
-0111 -> 1000
-```
-
-如果接收时钟恰好在翻转期间采样，不同位的路径延迟可能形成一个不存在的组合值。
-
-二进制反射格雷码（Binary-Reflected Gray Code，BRGC，以下简称格雷码）
-的相邻计数值只改变一位：
-
-```verilog
-gray = (binary >> 1) ^ binary;
-```
-
-因此一次合法的指针递增只产生一个跨域翻转位。格雷码只降低多位不一致
-采样的风险，不能消除亚稳态；每个格雷码指针仍然需要专用同步器链。
-
-本项目中：
-
-- `sync_w2r`：将写格雷码指针同步到读时钟域；
-- `sync_r2w`：将读格雷码指针同步到写时钟域；
-- `(* ASYNC_REG = "TRUE" *)`：向 FPGA 工具标记同步寄存器。
-
-## 6. 指针应该同步到哪个时钟域？
-
-原则是：标志必须在使用它的本地时钟域产生。
-
-| 标志 | 本地时钟域 | 需要同步过来的远端指针 |
-|---|---|---|
-| `empty` | 读时钟域 | 写指针 |
-| `full` | 写时钟域 | 读指针 |
-
-所以本项目的数据流为：
-
-```text
-wptr_gray --sync_w2r--> wptr_gray_sync --rptr_empty--> empty
-rptr_gray --sync_r2w--> rptr_gray_sync --wptr_full --> full
-```
-
-同步有延迟，因此标志可能保守：
-
-- 新数据写入后，`empty` 可能晚几个读时钟周期撤销；
-- 数据读出后，`full` 可能晚几个写时钟周期撤销。
-
-这种延迟降低了瞬时可用容量，但不会允许下溢或上溢。
-
-## 7. 空和满如何判断？
-
-### 7.1 空判断
-
-读时钟域计算下一读指针：
-
-```verilog
-rptr_bin_next  = rptr_bin + (rinc && !rempty);
-rptr_gray_next = (rptr_bin_next >> 1) ^ rptr_bin_next;
-rempty_next    = (rptr_gray_next == wptr_gray_sync);
-```
-
-当“下一读格雷码指针”等于同步后的写格雷码指针时，说明执行本次合法读取后没有剩余数据。
-
-### 7.2 满判断
-
-对于采用二进制反射格雷码、深度为 2 的幂的 FIFO，满状态满足：
-
-- 写指针与同步后的读指针低位相同；
-- 两个最高位相反。
-
-本项目用掩码表达：
-
-```verilog
-FULL_MASK  = {2'b11, {(PTR_WIDTH-2){1'b0}}};
-wfull_next = (wptr_gray_next == (rptr_gray_sync ^ FULL_MASK));
-```
-
-这里必须反转两个最高位，而不是只反转二进制指针意义上的回环位。
-
-## 8. 为什么使用“下一指针”计算标志？
-
-`wptr_full` 和 `rptr_empty` 先计算当前周期请求被接受后的指针，再计算下一状态的 `full/empty`，最后在本地时钟沿寄存。
-
-这样标志与本地指针状态一致：
-
-```text
-当前请求是否合法
-        ↓
-计算 binary_next
-        ↓
-转换 gray_next
-        ↓
-比较远端同步指针
-        ↓
-寄存 pointer 和 flag
-```
-
-写满时写请求不会推进写指针，读空时读请求不会推进读指针：
-
-```verilog
-winc && !wfull
-rinc && !rempty
-```
-
-## 9. 双口 RAM 的设计
-
-`fifo_mem` 只负责存储，不参与 CDC 和空满判断。它采用标准双时钟 Simple Dual-Port RAM 模板：
-
-```verilog
-always @(posedge wclk)
-    if (wclken)
-        mem[waddr] <= wdata;
-
-always @(posedge rclk)
-    if (rclken)
-        rdata <= mem[raddr];
-```
-
-特点：
-
-- 写端和读端分别使用自己的时钟；
-- 同步写、同步读；
-- RAM 数组不复位，有利于推断 FPGA Block RAM；
-- RAM 中的未知初始内容由 `empty` 和指针状态隔离。
-
-同步读意味着读请求在读时钟沿被接受，`rdata` 在该时钟沿后更新。`async_fifo_core` 提供 `rd_valid` 与这次更新对应。
-
-## 10. 位宽转换如何实现？
-
-经典异步 FIFO 内核保持等宽，使跨域指针每次只增加 1。位宽转换全部放在 CDC 内核外部。
-
-### 10.1 窄写、宽读
-
-在写时钟域打包，然后向内核写入一个宽字。
-
-例如 16→32：
-
-```text
-依次写入 16'h0001、16'h0002
-内核存储 32'h0002_0001
-```
-
-低位切片优先。
-
-#### 10.1.1 原有半包阻塞问题及解决方案
-
-旧版 `async_fifo_width_conv` 将拼好的宽字直接写入异步 FIFO 内核。如果内核在一个
-宽字尚未拼完时变满，最后一个窄字必须等待读端释放空间后才能被接受。
-FIFO 本身最终可以恢复，但如果系统规定“写端完成当前事务后读端才启动”，
-这种等待可能参与形成系统级循环等待。
-
-现在写端增加了一个完整宽字暂存槽：
-
-```text
-窄数据输入 -> 拼包寄存器 -> 完整宽字暂存寄存器
-                              -> 异步 FIFO 内核
-```
-
-即使内核已经满，当前宽字仍可以接收最后一个窄切片并进入暂存槽。只有
-暂存槽被占用时，旧接口的 `full` 才会阻止继续接收新窄字。
-
-对于新设计，更推荐使用 `async_fifo_stream`：
-
-- `wr_ready` 明确表示当前输入拍能否被接受；
-- `wr_last` 可以立即冲刷未填满的宽字；
-- `wr_keep` 记录末拍中哪些字节有效；
-- 读端通过 `rd_valid/rd_ready` 安全处理反压。
-
-### 10.2 宽写、窄读
-
-内核读取一个宽字后，在读时钟域缓存并逐片输出。
-
-例如 32→16：
-
-```text
-写入 32'h1122_3344
-依次读出 16'h3344、16'h1122
-```
-
-`fetch_pending` 用于记录同步 RAM 的在途读取。流式顶层另外提供 current/next
-两个读侧 payload 槽：当前宽字输出时预取下一个宽字；返回数据还可以在当前
-输出恰好被消费的同一时钟沿完成替换。因此初始填充后，等宽和宽写窄读模式
-都可以在数据持续可用时达到每个 `rd_clk` 一拍。
-
-### 10.3 为什么不让格雷码指针一次增加多个地址？
-
-如果为了位宽转换让跨域指针一次增加 2、4 等步长，连续传输的格雷码值不再
-保证只变化一位，这会破坏采用格雷码进行 CDC 的基本前提。
-
-本设计让等宽内核的指针每次只增加 1，并在单一时钟域中完成打包或拆包。
-
-## 11. 参数限制
+## 3. 理论参考
+
+异步 FIFO 内核遵循 Cummings/Sunburst 推荐结构：
+
+- 本地使用二进制计数器做地址和指针运算；
+- 跨时钟域前转换为二进制反射格雷码；
+- 每个格雷码指针同步到对侧时钟域；
+- `empty` 在读时钟域产生，`full` 在写时钟域产生；
+- 指针/标志逻辑使用下一指针预测，让寄存后的标志描述下一次本地传输是否合法。
+
+主要参考：
+
+- Clifford E. Cummings, *Simulation and Synthesis Techniques for Asynchronous
+  FIFO Design*, SNUG San Jose 2002, Sunburst Design
+  （[技术库条目](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf)）。
+  本文是本仓库同步后指针比较风格最接近的经典参考。
+- Clifford E. Cummings and Peter Alfke, *Simulation and Synthesis Techniques
+  for Asynchronous FIFO Design with Asynchronous Pointer Comparisons*, SNUG San
+  Jose 2002
+  （[技术库条目](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO2.pdf)）。
+  它适合作为延伸阅读；本仓库没有采用其中的异步指针比较结构。
+
+逐步教程负责 waveform-first 的第一遍理解；学习文档负责按 RTL 阅读顺序讲机制；
+接口文档是 `rd_valid`、almost 标志、wrapper 容量、复位和传输接受条件的权威定义。
+
+## 4. 参数限制
 
 当前实现要求：
 
@@ -647,7 +388,7 @@ CORE_DEPTH      = 512 个 32-bit 字
 和最多两个预取的读侧 payload。这些本地槽会增加总在途数据，但明确不计入
 `*_core_used`。
 
-## 12. 八个核心问题的实现映射
+## 5. 八个核心问题的实现映射
 
 | PDF 学习问题 | 本项目对应 |
 |---|---|
@@ -660,9 +401,9 @@ CORE_DEPTH      = 512 个 32-bit 字
 | 非 2 次幂深度 | 当前实现不支持 |
 | 时钟频差问题 | 见下一节的工程化说明 |
 
-## 13. 工程实现中需要注意的问题
+## 6. 工程实现中需要注意的问题
 
-### 13.1 空满标志的保守撤销延迟
+### 空满标志的保守撤销延迟
 
 同步延迟主要使标志的撤销变慢，即 FIFO 已经不空但读域仍短暂看到空，或者 FIFO 已经不满但写域仍短暂看到满。这是安全的保守判断。
 
@@ -671,7 +412,7 @@ CORE_DEPTH      = 512 个 32-bit 字
 - `empty == 0` 时允许读取不会下溢；
 - `full == 0` 时允许写入不会上溢。
 
-### 13.2 非 2 次幂深度
+### 非 2 次幂深度
 
 可以研究特殊格雷码序列或其他编码来实现非 2 次幂异步 FIFO，但满判断、
 回环和形式验证都会更复杂。当前代码不采用改变起点的方案，而是明确限制
@@ -679,7 +420,7 @@ CORE_DEPTH      = 512 个 32-bit 字
 
 对于工程项目，更常见的选择是使用下一个更大的 2 的幂物理深度，或者采用经过充分验证的厂商 FIFO IP。
 
-### 13.3 协议没有规定通用的固定时钟频率比上限
+### 协议没有规定通用的固定时钟频率比上限
 
 接收域漏采某些格雷码状态本身通常不是错误；接收端可以从一个合法格雷码值
 跳到更晚的合法格雷码值，空满结果仍然趋于保守。
@@ -697,7 +438,7 @@ CORE_DEPTH      = 512 个 32-bit 字
 （总线偏斜）约束，并运行 STA 与 CDC 检查。允许的频率比最终受吞吐需求、
 同步器 MTBF、物理实现和系统级流量控制共同限制。
 
-## 14. 复位注意事项
+## 7. 复位注意事项
 
 写域和读域分别使用低有效异步复位：
 
@@ -723,7 +464,7 @@ rd_rstn -> 读指针、empty、wptr 同步器
 语义。由异步复位指针驱动 BRAM 地址产生的厂商 DRC 警告，需要按照这个
 前提检查综合后网表并记录 waiver，不能用于支持单侧数据保留复位。
 
-## 15. 当前接口行为
+## 8. 当前接口行为
 
 写请求仅在以下条件成立时被接受：
 
@@ -744,7 +485,7 @@ ready/valid 反压和包元数据。
 `full`、`empty`、almost 标志和所有占用量输出的精确定义统一见
 [接口与时序](docs/interface.md)；高级状态信号及 wrapper 本地存储语义以该文档为准。
 
-## 16. 仿真
+## 9. 仿真
 
 先创建并激活可复现的 Conda 工具环境：
 
@@ -760,6 +501,22 @@ conda env update -n async_fifo -f environment.yml --prune
 ```
 
 然后运行以下检查。
+
+### PR 前快速检查
+
+| 修改范围 | 先跑 |
+|---|---|
+| 只改 Markdown | `make docs-check` |
+| tutorial waveform | `make tutorial` 和 `make docs-check` |
+| 等宽 FIFO RTL | `make tb_equal_width tb_fifo_random` |
+| 位宽转换 wrapper | `make tb_pack_16_to_32 tb_split_32_to_16` |
+| stream wrapper | `make tb_fifo_random tb_stream_random` |
+| CDC 或约束 | `make cdc` 和 `make synth` |
+| formal harness | 对应的 `sby -f ...` 任务，然后 `make formal` |
+| 发布元数据 | `make release-check` |
+
+较大的 PR 在提交前建议在 `async_fifo` Conda 环境里跑 `make check`。完整贡献
+检查清单见 [Contributing](CONTRIBUTING.md)。
 
 运行全部测试：
 
@@ -899,7 +656,7 @@ PASS: randomized stream 16-to-32 width conversion (... outputs)
 PASS: randomized stream 32-to-16 width conversion (... outputs)
 ```
 
-## 17. 验证与工程化状态
+## 10. 验证与工程化状态
 
 - [x] 等宽、满、空、非法访问阻塞和多次回绕测试；
 - [x] 复位期间 RAM 访问门控及复位后恢复传输测试；

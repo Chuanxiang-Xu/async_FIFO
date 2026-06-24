@@ -4,8 +4,32 @@
 可复用 IP 直接实例化。
 
 如果你只想知道怎么接端口，先看[接口与时序](interface.md)。如果你想先看模块
-层次，先看[架构说明](architecture.md)。然后再回到这里，从问题、机制一路读到
-RTL。
+层次，先看[架构说明](architecture.md)。如果你想从 basic FIFO 开始慢慢走一遍，
+先看[逐步教程](tutorial_CN.md)。然后再回到这里，从问题、机制一路读到 RTL。
+
+理论主线参考 Clifford E. Cummings, *Simulation and Synthesis Techniques for
+Asynchronous FIFO Design*, SNUG San Jose 2002
+（[技术库条目](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf)）。
+本仓库采用这一类设计中的同步后指针比较风格，并把位宽转换、stream 协议适配放在
+CDC core 外面。
+
+## Cummings 风格到本仓库 RTL 的映射
+
+| 经典概念 | 本仓库中对应位置 |
+|---|---|
+| 本地二进制写指针 | [`rtl/core/wptr_full.v`](../rtl/core/wptr_full.v) 里的 `wptr_bin` |
+| 本地二进制读指针 | [`rtl/core/rptr_empty.v`](../rtl/core/rptr_empty.v) 里的 `rptr_bin` |
+| 额外指针位 | [`rtl/core/async_fifo_core.v`](../rtl/core/async_fifo_core.v) 中 `ADDR_WIDTH + 1` 的指针宽度 |
+| 二进制到格雷码转换 | `wptr_gray_next` 和 `rptr_gray_next` |
+| 写指针跨到读时钟域 | [`rtl/core/sync_w2r.v`](../rtl/core/sync_w2r.v) |
+| 读指针跨到写时钟域 | [`rtl/core/sync_r2w.v`](../rtl/core/sync_r2w.v) |
+| `empty` 在读时钟域产生 | [`rtl/core/rptr_empty.v`](../rtl/core/rptr_empty.v) 里的 `rempty_next` |
+| `full` 在写时钟域产生 | [`rtl/core/wptr_full.v`](../rtl/core/wptr_full.v) 里的 `wfull_next` |
+| payload 不穿过同步器 | [`rtl/core/fifo_mem.v`](../rtl/core/fifo_mem.v) |
+
+本项目额外需要注意的是 `rd_valid`。core RAM 使用同步读模板，所以
+[`rtl/core/async_fifo_core.v`](../rtl/core/async_fifo_core.v) 会由 `read_allow`
+寄存得到 `rd_valid`，告诉用户当前 `rd_data` 对应一次已经接受的读请求。
 
 ## 本文术语约定
 
@@ -201,15 +225,17 @@ wrapper 负责在 core 外面适配接口：
 
 ## 推荐阅读顺序
 
-1. 先看 [`examples/basic_fifo/`](../examples/basic_fifo/) 的最小集成例子。
-2. 再看 [`rtl/async_fifo.v`](../rtl/async_fifo.v)，理解用户入口。
-3. 看 [`rtl/core/async_fifo_core.v`](../rtl/core/async_fifo_core.v)，理解各个子模块怎么连起来。
-4. 看 [`rtl/core/wptr_full.v`](../rtl/core/wptr_full.v) 和
+1. 先看[逐步教程](tutorial_CN.md)，并运行 `make tutorial`，用 waveform 把
+   `wr_en`、`rd_en`、`full`、`empty`、`rd_valid` 串起来。
+2. 再看 [`examples/basic_fifo/`](../examples/basic_fifo/) 的最小集成例子。
+3. 看 [`rtl/async_fifo.v`](../rtl/async_fifo.v)，理解用户入口。
+4. 看 [`rtl/core/async_fifo_core.v`](../rtl/core/async_fifo_core.v)，理解各个子模块怎么连起来。
+5. 看 [`rtl/core/wptr_full.v`](../rtl/core/wptr_full.v) 和
    [`rtl/core/rptr_empty.v`](../rtl/core/rptr_empty.v)。
-5. 看 [`rtl/core/sync_w2r.v`](../rtl/core/sync_w2r.v) 和
+6. 看 [`rtl/core/sync_w2r.v`](../rtl/core/sync_w2r.v) 和
    [`rtl/core/sync_r2w.v`](../rtl/core/sync_r2w.v)。
-6. 看 [CDC 约束](cdc_constraints.md)，把 RTL 思路和 FPGA 实现连接起来。
-7. 等等宽 core 理解顺了，再看 wrappers。
+7. 看 [CDC 约束](cdc_constraints.md)，把 RTL 思路和 FPGA 实现连接起来。
+8. 等等宽 core 理解顺了，再看 wrappers。
 
 读 RTL 时可以一直抓住这个心智模型：
 
@@ -218,3 +244,14 @@ wrapper 负责在 core 外面适配接口：
 控制路径：格雷码指针跨时钟域同步
 状态路径：本地指针 + 同步后的远端指针，产生本地 full/empty 等状态
 ```
+
+## 参考资料
+
+- Clifford E. Cummings, *Simulation and Synthesis Techniques for Asynchronous
+  FIFO Design*, SNUG San Jose 2002, Sunburst Design
+  （[技术库条目](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf)）。
+- Clifford E. Cummings and Peter Alfke, *Simulation and Synthesis Techniques
+  for Asynchronous FIFO Design with Asynchronous Pointer Comparisons*, SNUG San
+  Jose 2002
+  （[技术库条目](https://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO2.pdf)）。
+  这篇适合作为异步 FIFO 其他风格的延伸阅读。
