@@ -29,6 +29,25 @@ Assertion is asynchronous and release takes `STAGES` local rising edges.
 `STAGES` must be at least two. This helper does not change the FIFO's
 destructive coordinated-reset contract.
 
+## Transfer qualification summary
+
+For request-style modules, `wr_en` and `rd_en` are requests. A transfer occurs
+only when the local reset is released and the local status flag allows it:
+
+| Module | Write accepted on `wr_clk` when | Read accepted on `rd_clk` when |
+|---|---|---|
+| `async_fifo` | `wr_rstn && wr_en && !full` | `rd_rstn && rd_en && !empty` |
+| `async_fifo_width_conv` | `wr_rstn && wr_en && !full` | `rd_rstn && rd_en && !empty` |
+
+Both request-style modules expose `rd_valid`; consumers must qualify `rd_data`
+with `rd_valid`, not with `rd_en` alone. The tutorial waveform shows this
+timing in a small depth-4 FIFO: see
+[Async FIFO Step-by-Step Tutorial](tutorial.md#a-real-waveform).
+
+For `async_fifo_stream`, the status flags are secondary. Data movement is
+defined by ready/valid handshakes: `wr_valid && wr_ready` in the write domain
+and `rd_valid && rd_ready` in the read domain.
+
 ## Advanced status signals
 
 This section is the single reference for status outputs beyond the basic
@@ -103,7 +122,10 @@ appears after coordinated reset release.
 
 The RAM has a synchronous read port. `rd_valid` is asserted for the cycle
 corresponding to an accepted read, and `rd_data` contains the newly read word
-after that clock edge.
+after that clock edge. In other words, `rd_valid` marks the cycle in which
+`rd_data` should be sampled. For a concrete timing example, run `make tutorial`
+and compare the accepted reads with the `rd_valid` pulses in
+[the tutorial waveform](tutorial.md#a-real-waveform).
 
 `almost_full` and `almost_empty` are advisory registered flags. Their default
 thresholds are depth minus one and one word, respectively. The threshold
@@ -153,6 +175,13 @@ It does not include wrapper-local packing, pending, or splitting storage.
 The width-converting threshold parameters use internal `CORE_WIDTH` words,
 not narrow-side entries. Their default value of `-1` selects depth minus one
 for `almost_full` and one for `almost_empty`.
+
+Like the equal-width request interface, a write-side input beat is accepted
+only on a rising `wr_clk` edge with `wr_rstn && wr_en && !full`, and a
+read-side output beat is accepted only on a rising `rd_clk` edge with
+`rd_rstn && rd_en && !empty`. The wrapper-level `full` and `empty` signals
+already include the local pack, pending, fetch, and split-buffer state needed
+to decide whether the next interface beat can move.
 
 `wr_core_used` and `rd_core_used` deliberately describe only the equal-width
 FIFO core. They do not include partially packed input slices, a completed
@@ -244,6 +273,11 @@ generated in the write domain; `almost_empty` is generated in the read domain.
 The write beat is accepted when `wr_valid && wr_ready`. The read beat is
 accepted when `rd_valid && rd_ready`. While valid is high and ready is low,
 the corresponding data, keep, and last outputs must remain stable.
+
+Unlike the request-style interfaces, `rd_valid` is not a one-cycle pulse that
+merely marks a returned RAM word. It is the stream valid signal: while it is
+high, `rd_data`, `rd_keep`, and `rd_last` describe the current output beat and
+must remain stable until `rd_ready` accepts it.
 
 ### Ports
 

@@ -1,9 +1,17 @@
 # CDC and Timing Constraints
 
 The RTL implements the logical CDC structure of a conventional asynchronous
-FIFO, but RTL attributes alone are not a complete timing-closure strategy.
-Every target project should add device- and tool-specific constraints and run
-CDC analysis after synthesis.
+FIFO, but RTL attributes and formal proofs are not a complete timing-closure
+strategy. Every target project should add device- and tool-specific
+constraints and run CDC analysis after synthesis and implementation.
+
+This repository separates the work into three layers:
+
+| Layer | Repository support | What remains for the integrator |
+|---|---|---|
+| Source structure | `make cdc` checks synchronizer source structure and constraint-template intent | Review synthesized hierarchy and endpoint matches |
+| Logical behavior | `make formal` checks bounded FIFO safety, ordering, reset, and wrapper behavior | Decide whether the bounded coverage is sufficient for the use case |
+| Physical sign-off | Xilinx and Intel constraint templates express Gray-pointer timing intent | Run target-specific STA, CDC, reset, DRC, and methodology review |
 
 The repository provides executable source-level checks:
 
@@ -16,41 +24,11 @@ make formal
 `make cdc` checks the expected two-stage synchronizer source structure and
 Gray-pointer connections. `make synth` runs Yosys hierarchy and process
 checks. Neither command replaces post-route CDC sign-off.
-`make formal` runs multiple complementary layers. The pointer harness proves local Gray
-transitions and blocked-access stability by k-induction. The multiclock core
-harness performs bounded exhaustive exploration through 96 frames for
-occupancy bounds, full/empty and almost-flag consistency, read-valid timing,
-and end-to-end data ordering. Its
-coprime clock schedule continually changes write/read phase; a separate cover
-task reaches full and more reads than one physical FIFO depth. Two additional
-symbolic-clock BMCs use independently selected write/read phase increments
-and an arbitrary initial read-clock phase at `ADDR_WIDTH=1/2`. They cover a
-bounded family of frequency ratios and edge coincidences rather than only the
-fixed 2/3 schedule. Two additional
-96-frame BMCs check write-first and read-first synchronous reset release while
-traffic remains disabled until both domains initialize; matching cover tasks
-reach repeated ordered reads after release. The packet-stream wrapper has the
-same two release-order BMCs through its 8-to-16 pack path; matching covers
-reach both final and non-final transfers after coordinated startup. Four 64-frame
-wrapper BMCs check both packing directions: the request interface checks
-unique-token slice ordering and occupancy bounds, while the stream interface
-uses independent read-side expectation state to check `data/keep/last`
-ordering and output stability under arbitrary backpressure. Four additional
-wrapper cover tasks establish non-vacuity by reaching full, repeated reads,
-and stream final/non-final transfers. Request-converter covers use 160 frames;
-stream covers use 96 frames.
-
-`make formal-matrix` adds 20 concrete 64-frame BMC elaborations across both
-wrapper APIs, `ADDR_WIDTH=2/3/4/5`, 8/16-bit equal-width operation, and
-bidirectional 1:2/1:4/1:8 conversion. Four ratio-4 cover tasks reach repeated
-ordered outputs.
-The full `make formal` target includes this matrix.
-
-The deep packet/reset wrapper harnesses use representative fixed parameters;
-the matrix broadens concrete width and depth coverage with a coprime 2/3
-clock-divider schedule. The symbolic-clock core layer varies rates and initial
-phase independently. None of these bounded layers claims one exhaustive proof
-over every legal elaboration or continuously varying clock waveform.
+`make formal` runs complementary bounded proofs and covers. See
+[Formal Verification Guide](formal_verification.md) for the proof strategy and
+recommended first commands. Formal checks prove logical behavior inside their
+harness assumptions; they do not constrain routed delay, bus skew,
+metastability MTBF, reset recovery/removal, or vendor CDC report quality.
 
 ## CDC paths in this design
 
