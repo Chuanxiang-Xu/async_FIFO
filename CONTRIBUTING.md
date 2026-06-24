@@ -6,8 +6,8 @@ Thanks for taking the time to improve this asynchronous FIFO project.
 
 Please include:
 
-- the affected top-level module (`async_fifo`, `async_fifo_width_conv`, or
-  `async_fifo_stream`);
+- the affected top-level module (`async_fifo`, `async_fifo_fwft`,
+  `async_fifo_width_conv`, or `async_fifo_stream`);
 - parameter values and write/read clock periods;
 - simulator, synthesis tool, or FPGA family and tool version;
 - a minimal reproduction, waveform, or error log;
@@ -73,6 +73,7 @@ before opening a PR.
 | Markdown only | `make docs-check` |
 | Tutorial waveform or tutorial testbench | `make tutorial`, `make docs-check` |
 | Equal-width FIFO RTL | `make tb_equal_width tb_fifo_random`, `make lint`, `make cdc`, `make synth`, relevant formal target |
+| FWFT wrapper | `make tb_fwft_first_word tb_fwft_stall_and_stream tb_fwft_empty_pop_and_reset`, `sby -f -d build/formal-fwft-bmc formal/fwft.sby bmc`, `make lint`, `make synth` |
 | Width-conversion wrapper | `make tb_pack_16_to_32 tb_split_32_to_16 tb_width_conv_pack_buffer`, `make formal` or relevant `width_conv.sby` task |
 | Stream wrapper | stream simulation targets, `make lint`, relevant `stream.sby` task |
 | Reset behavior | reset simulations, `formal/reset_skew.sby`, and stream reset checks if wrappers are affected |

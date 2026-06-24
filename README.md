@@ -2,6 +2,8 @@
 
 [中文](README-CN.md)
 
+[![RTL checks](https://github.com/Chuanxiang-Xu/async_FIFO/actions/workflows/sim.yml/badge.svg)](https://github.com/Chuanxiang-Xu/async_FIFO/actions/workflows/sim.yml)
+
 A compact, learning-oriented asynchronous FIFO RTL project with CDC
 constraints, wrappers, simulation/formal checks, and a small PYNQ-Z2 board
 demo.
@@ -221,7 +223,7 @@ formal/
 └── stream.sby                   # Stream-wrapper BMC/cover configuration
 ```
 
-The project provides three reusable FIFO entry points:
+The project provides four reusable FIFO entry points:
 
 ```text
 async_fifo                   equal width: DATA_WIDTH/ADDR_WIDTH

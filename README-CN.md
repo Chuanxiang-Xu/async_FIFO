@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+[![RTL checks](https://github.com/Chuanxiang-Xu/async_FIFO/actions/workflows/sim.yml/badge.svg)](https://github.com/Chuanxiang-Xu/async_FIFO/actions/workflows/sim.yml)
+
 一个偏学习导向的紧凑异步 FIFO RTL 项目，包含 CDC 约束、wrapper、仿真/形式验证
 和一个简单的 PYNQ-Z2 板级 demo。
 
@@ -203,7 +205,7 @@ formal/
 └── stream.sby                   # 流式 wrapper BMC/cover 配置
 ```
 
-项目提供三个可复用 FIFO 入口：
+项目提供四个可复用 FIFO 入口：
 
 ```text
 async_fifo                   等宽接口，配置 DATA_WIDTH/ADDR_WIDTH
