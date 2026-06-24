@@ -6,5 +6,6 @@ rtl/core/sync_w2r.v
 rtl/core/sync_r2w.v
 rtl/core/async_fifo_core.v
 rtl/async_fifo.v
+rtl/wrappers/async_fifo_fwft.v
 rtl/wrappers/async_fifo_width_conv.v
 rtl/wrappers/async_fifo_stream.v

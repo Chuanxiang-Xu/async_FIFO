@@ -1,7 +1,7 @@
 CAPI=2:
 
 name: ::async_fifo:1.0.0
-description: Parameterized asynchronous FIFO RTL with width conversion and stream wrappers
+description: Parameterized asynchronous FIFO RTL with FWFT, width conversion, and stream wrappers
 
 filesets:
   rtl:
@@ -14,6 +14,7 @@ filesets:
       - rtl/core/sync_r2w.v
       - rtl/core/async_fifo_core.v
       - rtl/async_fifo.v
+      - rtl/wrappers/async_fifo_fwft.v
       - rtl/wrappers/async_fifo_width_conv.v
       - rtl/wrappers/async_fifo_stream.v
     file_type: verilogSource
@@ -28,6 +29,11 @@ targets:
     filesets:
       - rtl
     toplevel: async_fifo_width_conv
+
+  fwft:
+    filesets:
+      - rtl
+    toplevel: async_fifo_fwft
 
   stream:
     filesets:

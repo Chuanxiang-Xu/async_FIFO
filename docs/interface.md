@@ -1,13 +1,15 @@
 # Interface and Timing
 
-This project exposes three primary synthesizable top-level modules:
+This project exposes four primary synthesizable top-level modules:
 
 - `async_fifo`: equal-width asynchronous FIFO with an explicit read-valid
   output;
+- `async_fifo_fwft`: equal-width asynchronous FIFO with first-word
+  fallthrough read behavior;
 - `async_fifo_width_conv`: request-based width-converting asynchronous FIFO;
 - `async_fifo_stream`: recommended packet-aware ready/valid interface.
 
-All three primary modules use separate active-low asynchronous reset inputs
+All primary modules use separate active-low asynchronous reset inputs
 for the write and read domains. Reset may assert asynchronously, but the
 integrator must deassert each reset synchronously to its local clock. Do not
 transfer data until both domains have completed initialization. Formal checks
@@ -37,11 +39,13 @@ only when the local reset is released and the local status flag allows it:
 | Module | Write accepted on `wr_clk` when | Read accepted on `rd_clk` when |
 |---|---|---|
 | `async_fifo` | `wr_rstn && wr_en && !full` | `rd_rstn && rd_en && !empty` |
+| `async_fifo_fwft` | `wr_rstn && wr_en && !full` | `rd_rstn && rd_en && rd_valid` pops visible data |
 | `async_fifo_width_conv` | `wr_rstn && wr_en && !full` | `rd_rstn && rd_en && !empty` |
 
-Both request-style modules expose `rd_valid`; consumers must qualify `rd_data`
-with `rd_valid`, not with `rd_en` alone. The tutorial waveform shows this
-timing in a small depth-4 FIFO: see
+The standard request-style modules expose `rd_valid`; consumers must qualify `rd_data`
+with `rd_valid`, not with `rd_en` alone. The FWFT wrapper uses `rd_valid` as a
+level signal: while high, `rd_data` contains a visible word, and `rd_en` pops it.
+The tutorial waveform shows the standard timing in a small depth-4 FIFO: see
 [Async FIFO Step-by-Step Tutorial](tutorial.md#a-real-waveform).
 
 For `async_fifo_stream`, the status flags are secondary. Data movement is
@@ -51,9 +55,10 @@ and `rd_valid && rd_ready` in the read domain.
 ## Advanced status signals
 
 This section is the single reference for status outputs beyond the basic
-transfer qualifiers. Logic that moves data must use `!full`/`!empty` for the
-request interfaces or `ready && valid` for the stream interface; the signals
-below are for monitoring and early flow control.
+transfer qualifiers. Logic that moves data must use the module's documented
+transfer condition: `!full`/`!empty` for standard request interfaces,
+`rd_valid` for FWFT pops, or `ready && valid` for the stream interface. The
+signals below are for monitoring and early flow control.
 
 | Signal | Clock domain | Meaning |
 |---|---|---|
@@ -135,6 +140,41 @@ comparison includes the local transfer accepted on the current clock edge.
 pointer. They are stable in their respective domains and use core-word units,
 but synchronization latency prevents either from being an instantaneous
 global occupancy value.
+
+## Equal-width FWFT interface: `async_fifo_fwft`
+
+`async_fifo_fwft` wraps the same equal-width core with read-side prefetch
+storage. It is intended for users who want the first readable word to appear on
+`rd_data` automatically after pointer synchronization and the internal
+synchronous RAM fetch.
+
+The write-side contract is identical to `async_fifo`:
+
+```text
+wr_rstn && wr_en && !full
+```
+
+The read side is observe-then-consume:
+
+```text
+rd_valid == 1             rd_data holds a visible word
+rd_rstn && rd_en && rd_valid  consumes that visible word
+empty == !rd_valid        no word is currently visible to the user
+```
+
+While `rd_valid && !rd_en`, `rd_data` remains stable. A pop when `rd_valid` is
+low is non-destructive. The wrapper contains two read-side prefetch slots so it
+can keep data available during continuous reads once the initial fallthrough
+pipeline has filled.
+
+`rd_used` is a read-domain user-facing estimate: the core read-domain count
+plus the wrapper's visible slot, spare slot, and pending internal fetch. Like
+all occupancy views in this project, it is local and conservative rather than a
+global instantaneous count. `almost_empty` is derived from this FWFT read-side
+view and remains advisory; the pop qualifier is `rd_en && rd_valid`.
+
+For the design rationale and test plan, see
+[FWFT / Fallthrough Design Notes](fwft_design.md).
 
 ## Width-converting interface: `async_fifo_width_conv`
 

@@ -8,9 +8,11 @@ demo.
 
 [Use it](#which-module-should-i-use) ·
 [Tutorial](docs/tutorial.md) ·
+[Cummings map](docs/cummings_mapping.md) ·
 [Learn it](docs/learning_async_fifo.md) ·
 [Formal](docs/formal_verification.md) ·
 [XPM comparison](docs/xpm_fifo_async_comparison.md) ·
+[FWFT design](docs/fwft_design.md) ·
 [Interface](docs/interface.md) ·
 [Architecture](docs/architecture.md) ·
 [CDC constraints](docs/cdc_constraints.md) ·
@@ -23,6 +25,7 @@ demo.
 | Need | Module | Role |
 |---|---|---|
 | A small, equal-width asynchronous FIFO | `async_fifo` | **Start here.** Minimal public entry point |
+| Equal-width FIFO with first-word fallthrough | `async_fifo_fwft` | Optional FWFT read-side wrapper |
 | Different write and read widths | `async_fifo_width_conv` | Optional width-conversion wrapper |
 | Ready/valid streaming with `keep` and `last` | `async_fifo_stream` | Optional packet-stream wrapper |
 
@@ -42,16 +45,19 @@ then read
 
 | Reader | Start here | Then read |
 |---|---|---|
-| First-time async FIFO learner | [Step-by-step tutorial](docs/tutorial.md) | [Learning Async FIFO](docs/learning_async_fifo.md) |
+| First-time async FIFO learner | [Step-by-step tutorial](docs/tutorial.md) | [Cummings-Style FIFO Mapping](docs/cummings_mapping.md) |
 | RTL integrator | [Which module should I use?](#which-module-should-i-use) | [Interface and Timing](docs/interface.md) |
+| RTL reader | [Cummings-Style FIFO Mapping](docs/cummings_mapping.md) | [Learning Async FIFO](docs/learning_async_fifo.md) |
 | Verification reader | [Learning Async FIFO](docs/learning_async_fifo.md) | [Formal Verification Guide](docs/formal_verification.md) |
 | Vendor-IP comparer | [Interface and Timing](docs/interface.md) | [XPM_FIFO_ASYNC Comparison](docs/xpm_fifo_async_comparison.md) |
+| Future FWFT contributor | [Interface and Timing](docs/interface.md) | [FWFT / Fallthrough Design Notes](docs/fwft_design.md) |
 | CDC/timing reviewer | [Architecture](docs/architecture.md) | [CDC Constraints](docs/cdc_constraints.md) |
 | Board-flow user | [Simple board demo](#simple-board-demo) | [PYNQ-Z2 Vivado Validation](docs/pynq_z2_vivado.md) |
 
 The core async FIFO structure follows the well-known Cummings/Sunburst
 style: binary pointers for local arithmetic, Gray pointers for CDC, two-flop
 pointer synchronizers, and local-domain full/empty generation. See
+[Cummings-Style FIFO Mapping](docs/cummings_mapping.md) for the RTL map and
 [Theory references](#theory-references) for the paper links.
 
 ## Architecture at a glance
@@ -106,6 +112,8 @@ The repository provides three synthesizable FIFO entry points. Select one
 according to the transaction semantics:
 
 - `async_fifo`: equal-width request interface;
+- `async_fifo_fwft`: equal-width request interface with first-word
+  fallthrough read behavior;
 - `async_fifo_width_conv`: request interface with an integer power-of-two
   width ratio;
 - `async_fifo_stream`: packet-aware `ready/valid`, `keep`, and `last`
@@ -163,6 +171,7 @@ async_FIFO/
 │   │   ├── sync_w2r.v           # Write pointer into read domain
 │   │   └── sync_r2w.v           # Read pointer into write domain
 │   ├── wrappers/
+│   │   ├── async_fifo_fwft.v       # Optional equal-width FWFT wrapper
 │   │   ├── async_fifo_width_conv.v # Optional width-conversion wrapper
 │   │   └── async_fifo_stream.v     # Optional packet-stream wrapper
 │   └── util/
@@ -217,6 +226,9 @@ The project provides three reusable FIFO entry points:
 async_fifo                   equal width: DATA_WIDTH/ADDR_WIDTH
 └── async_fifo_core
 
+async_fifo_fwft              equal width with first-word fallthrough
+└── async_fifo_core          conventional equal-width async FIFO core
+
 async_fifo_width_conv        width conversion: WDATA_WIDTH/RDATA_WIDTH/ADDR_WIDTH
 └── async_fifo_core          conventional equal-width async FIFO core
     ├── fifo_mem
@@ -232,6 +244,8 @@ async_reset_sync             optional per-domain reset integration helper
 ```
 
 Use `async_fifo` for a simple equal-width FIFO,
+`async_fifo_fwft` when the first readable word should appear before a read
+request,
 `async_fifo_width_conv` for request-based width conversion, and
 `async_fifo_stream` for packet-streaming integrations.
 

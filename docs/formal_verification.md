@@ -20,6 +20,8 @@ The formal checks are split into small harnesses so each one has a clear job:
 | `rd_valid` matches accepted reads | [`formal/core_formal.sv`](../formal/core_formal.sv) | Correct synchronous-read timing |
 | Local status counts stay in range | [`formal/core_formal.sv`](../formal/core_formal.sv) | Conservative `full`, `empty`, and occupancy views |
 | Reset release works write-first or read-first | [`formal/reset_skew_formal.sv`](../formal/reset_skew_formal.sv) | Coordinated startup after reset skew |
+| FWFT visible pops preserve order | [`formal/fwft_formal.sv`](../formal/fwft_formal.sv) | No loss, duplication, or reordering through the prefetch slots |
+| FWFT stalled output stays stable | [`formal/fwft_formal.sv`](../formal/fwft_formal.sv) | Correct fallthrough backpressure behavior |
 | Request width conversion preserves slice order | [`formal/width_conv_formal.sv`](../formal/width_conv_formal.sv) | Pack/split data ordering |
 | Stream metadata stays attached to data | [`formal/stream_formal.sv`](../formal/stream_formal.sv) | `keep`, `last`, and backpressure behavior |
 | Wrapper parameters are sampled across ratios and depths | [`formal/matrix_formal.sv`](../formal/matrix_formal.sv) | Regression coverage over representative configurations |
@@ -51,6 +53,7 @@ When studying the project, start with this smaller ladder:
 sby -f -d build/formal-pointer formal/pointer.sby
 sby -f -d build/formal-core-bmc formal/core.sby bmc
 sby -f -d build/formal-core-cover formal/core.sby cover
+sby -f -d build/formal-fwft-bmc formal/fwft.sby bmc
 sby -f -d build/formal-width-pack formal/width_conv.sby pack
 sby -f -d build/formal-stream-pack formal/stream.sby pack
 ```
@@ -64,6 +67,7 @@ four commands above have been run successfully from this repository:
 | `formal/pointer.sby` | PASS | Smallest proof; checks Gray transitions and blocked pointers |
 | `formal/core.sby bmc` | PASS | Checks bounded core ordering, status, occupancy, and `rd_valid` |
 | `formal/core.sby cover` | PASS | Produces traces for full and post-depth read progress |
+| `formal/fwft.sby bmc` | PASS | Checks FWFT pop ordering, stable stalls, reset clearing, and visible `empty` |
 | `formal/width_conv.sby pack` | PASS | Checks one request-wrapper packing path |
 
 The Makefile also runs `make formal-matrix`, which sweeps representative
@@ -88,6 +92,9 @@ pointer mechanism to the FIFO contract:
 
 After that, read the wrapper harnesses:
 
+- [`formal/fwft_formal.sv`](../formal/fwft_formal.sv) proves that the FWFT
+  wrapper presents visible data in order, holds it stable while stalled, and
+  clears the visible output during read reset;
 - [`formal/width_conv_formal.sv`](../formal/width_conv_formal.sv) proves
   little-slice-first request conversion in both directions;
 - [`formal/stream_formal.sv`](../formal/stream_formal.sv) proves packet
@@ -102,6 +109,7 @@ reachable inside the bounded model:
 
 - the FIFO can become full;
 - reads can progress beyond one FIFO depth;
+- FWFT can expose a first word, stall it, and pop beyond one FIFO depth;
 - wrapper pack and split paths can produce repeated outputs;
 - stream final and non-final packet transfers are reachable.
 

@@ -16,7 +16,7 @@ The reference point is AMD UG974, `XPM_FIFO_ASYNC`, version 2026.1:
 |---|---|---|
 | Purpose | Vendor macro for production AMD/Xilinx FPGA designs | Readable, runnable, verifiable teaching RTL |
 | Main request interface | `wr_en/full`, `rd_en/empty`, `din/dout`, `data_valid` | `wr_en/full`, `rd_en/empty`, `wr_data/rd_data`, `rd_valid` |
-| Read modes | Standard and FWFT via `READ_MODE` | Standard synchronous read only; FWFT is planned future work |
+| Read modes | Standard and FWFT via `READ_MODE` | Standard synchronous read plus an equal-width FWFT wrapper; no XPM-compatible `READ_MODE` parameter |
 | Read latency | Configurable with `FIFO_READ_LATENCY` in standard mode | One synchronous RAM read response marked by `rd_valid` |
 | Reset | Single `rst`, synchronous to `wr_clk`, plus `wr_rst_busy` and `rd_rst_busy` | Separate active-low domain resets; async assert, local sync release required |
 | CDC stages | `CDC_SYNC_STAGES` parameter | Fixed two-flop pointer synchronizers in the core |
@@ -54,7 +54,7 @@ features unless they directly serve the teaching path.
 |---|---|---|
 | `FIFO_WRITE_DEPTH` | `2**ADDR_WIDTH` | Both use power-of-two depth. XPM documents effective depth details by read mode; this project documents core and wrapper capacity separately. |
 | `WRITE_DATA_WIDTH`, `READ_DATA_WIDTH` | `DATA_WIDTH` or wrapper `WDATA_WIDTH/RDATA_WIDTH` | The core stays equal-width. Width conversion is wrapper logic around the core. |
-| `READ_MODE` | Not yet supported as a parameter | Current behavior is standard synchronous read with `rd_valid`. FWFT belongs on the roadmap. |
+| `READ_MODE` | Not supported as an XPM-compatible parameter | `async_fifo` remains standard synchronous read; `async_fifo_fwft` provides a separate equal-width FWFT wrapper. |
 | `FIFO_READ_LATENCY` | Fixed synchronous RAM response | This project does not expose a configurable output pipeline. |
 | `CDC_SYNC_STAGES` | Two-flop synchronizers | The core is intentionally simple and fixed for teaching. |
 | `PROG_FULL_THRESH`, `PROG_EMPTY_THRESH` | `ALMOST_FULL_THRESHOLD`, `ALMOST_EMPTY_THRESHOLD` | Project thresholds are static parameters and expose only `almost_*`, not separate `prog_*` ports. |
@@ -85,15 +85,17 @@ XPM supports standard mode and FWFT mode. In standard mode, `data_valid`
 depends on the configured read latency. In FWFT mode, the first word can appear
 without a normal read-request latency.
 
-This repository currently implements standard synchronous-read behavior:
+The main `async_fifo` entry point implements standard synchronous-read behavior:
 
 - `rd_en && !empty` accepts a read request;
 - the RAM updates `rd_data` on the read clock edge;
 - `rd_valid` marks the cycle where `rd_data` should be sampled.
 
 For a concrete waveform, see the
-[step-by-step tutorial](tutorial.md#a-real-waveform). FWFT/fallthrough behavior
-is intentionally left as a documented future mode or wrapper-level extension.
+[step-by-step tutorial](tutorial.md#a-real-waveform). The separate
+`async_fifo_fwft` wrapper implements the teaching-project FWFT contract
+described in [FWFT / Fallthrough Design Notes](fwft_design.md); it is not an
+attempt to clone every XPM `READ_MODE="fwft"` detail.
 
 ## Width Conversion
 
@@ -147,7 +149,7 @@ physical implementation boundary.
 
 This project intentionally does not implement:
 
-- FWFT read mode;
+- an XPM-compatible `READ_MODE` parameter;
 - configurable `FIFO_READ_LATENCY`;
 - `wr_rst_busy` / `rd_rst_busy`;
 - `wr_ack`, `overflow`, and `underflow` output ports;

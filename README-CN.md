@@ -7,9 +7,11 @@
 
 [怎么用](#我应该使用哪个模块) ·
 [逐步教程](docs/tutorial_CN.md) ·
+[Cummings 映射](docs/cummings_mapping_CN.md) ·
 [原理深读](docs/learning_async_fifo_CN.md) ·
 [形式验证](docs/formal_verification_CN.md) ·
 [XPM 对比](docs/xpm_fifo_async_comparison_CN.md) ·
+[FWFT 设计](docs/fwft_design_CN.md) ·
 [接口](docs/interface.md) ·
 [架构](docs/architecture.md) ·
 [CDC 约束](docs/cdc_constraints.md) ·
@@ -22,6 +24,7 @@
 | 需求 | 模块 | 角色 |
 |---|---|---|
 | 小型等宽异步 FIFO | `async_fifo` | **从这里开始。** 最小公开用户入口 |
+| 等宽 FIFO，并需要 first-word fallthrough | `async_fifo_fwft` | 可选 FWFT 读侧 wrapper |
 | 写读位宽不同 | `async_fifo_width_conv` | 可选位宽转换 wrapper |
 | 带 `keep`、`last` 的 `ready/valid` 流接口 | `async_fifo_stream` | 可选分包流 wrapper |
 
@@ -39,16 +42,19 @@
 
 | 读者 | 先看 | 再看 |
 |---|---|---|
-| 第一次学异步 FIFO | [逐步教程](docs/tutorial_CN.md) | [学习异步 FIFO](docs/learning_async_fifo_CN.md) |
+| 第一次学异步 FIFO | [逐步教程](docs/tutorial_CN.md) | [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md) |
 | RTL 集成者 | [我应该使用哪个模块？](#我应该使用哪个模块) | [接口与时序](docs/interface.md) |
+| RTL 阅读者 | [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md) | [学习异步 FIFO](docs/learning_async_fifo_CN.md) |
 | 验证读者 | [学习异步 FIFO](docs/learning_async_fifo_CN.md) | [形式验证指南](docs/formal_verification_CN.md) |
 | Vendor IP 对比读者 | [接口与时序](docs/interface.md) | [XPM_FIFO_ASYNC 对比](docs/xpm_fifo_async_comparison_CN.md) |
+| 未来 FWFT 贡献者 | [接口与时序](docs/interface.md) | [FWFT / Fallthrough 设计说明](docs/fwft_design_CN.md) |
 | CDC/时序审阅者 | [架构说明](docs/architecture.md) | [CDC 约束](docs/cdc_constraints.md) |
 | 板级流程使用者 | [简单板级 demo](#简单板级-demo) | [PYNQ-Z2 Vivado 验证](docs/pynq_z2_vivado.md) |
 
 内核异步 FIFO 结构参考 Cummings/Sunburst 经典风格：本地二进制指针用于地址和
 算术，跨域前转换为格雷码指针，经过两级同步后在本地时钟域产生 `full`/`empty`。
-论文链接见[理论参考](#理论参考)。
+RTL 对应关系见 [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md)，论文链接见
+[理论参考](#理论参考)。
 
 ## 架构速览
 
@@ -96,6 +102,7 @@ production sign-off 包。
 这个仓库提供三个可综合 FIFO 入口，选择接口时应先确定事务语义：
 
 - `async_fifo`：等宽、请求式读写；
+- `async_fifo_fwft`：等宽、读侧 first-word fallthrough 行为；
 - `async_fifo_width_conv`：整数 2 次幂比例的请求式位宽转换；
 - `async_fifo_stream`：带 `ready/valid`、`keep` 和 `last` 的分包流接口，
   推荐用于新的流式集成。
@@ -146,6 +153,7 @@ async_FIFO/
 │   │   ├── sync_w2r.v           # 写指针同步到读时钟域
 │   │   └── sync_r2w.v           # 读指针同步到写时钟域
 │   ├── wrappers/
+│   │   ├── async_fifo_fwft.v       # 可选等宽 FWFT wrapper
 │   │   ├── async_fifo_width_conv.v # 可选位宽转换 wrapper
 │   │   └── async_fifo_stream.v     # 可选分包流 wrapper
 │   └── util/
@@ -200,6 +208,9 @@ formal/
 async_fifo                   等宽接口，配置 DATA_WIDTH/ADDR_WIDTH
 └── async_fifo_core
 
+async_fifo_fwft              等宽接口，带 first-word fallthrough 读行为
+└── async_fifo_core          标准等宽异步 FIFO 内核
+
 async_fifo_width_conv        变宽接口，配置 WDATA_WIDTH/RDATA_WIDTH/ADDR_WIDTH
 └── async_fifo_core          标准等宽异步 FIFO 内核
     ├── fifo_mem
@@ -214,7 +225,8 @@ async_fifo_stream            推荐的新流式接口
 async_reset_sync             可选的单时钟域复位集成辅助模块
 ```
 
-简单等宽场景使用 `async_fifo`，请求式变宽场景使用
+简单等宽场景使用 `async_fifo`；如果希望第一个可读数据在读请求前自动出现在输出端，
+使用 `async_fifo_fwft`；请求式变宽场景使用
 `async_fifo_width_conv`，新的分包流式接口使用 `async_fifo_stream`。
 
 ## 2. 参数如何设置

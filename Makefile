@@ -15,6 +15,7 @@ RTL_SOURCES := $(shell cat $(RTL_FILES))
 TEST_FILES := \
 	test/tb_reset_sync.sv \
 	test/tb_fifo_basic.sv \
+	test/tb_fifo_fwft.sv \
 	test/tb_fifo_stream.sv \
 	test/tb_fifo_random.sv \
 	test/fifo_assertions.sv \
@@ -23,6 +24,9 @@ TEST_FILES := \
 TESTS := \
 	tb_async_reset_sync \
 	tb_equal_width \
+	tb_fwft_first_word \
+	tb_fwft_stall_and_stream \
+	tb_fwft_empty_pop_and_reset \
 	tb_almost_flags \
 	tb_pack_16_to_32 \
 	tb_split_32_to_16 \
@@ -88,6 +92,8 @@ lint:
 	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
 		--top-module async_fifo
 	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
+		--top-module async_fifo_fwft
+	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
 		--top-module async_fifo_width_conv
 	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
 		--top-module async_fifo_stream
@@ -113,6 +119,7 @@ xilinx-runner-check:
 synth:
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_reset_sync; proc; check'
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo; proc; check'
+	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo_fwft; proc; check'
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo_width_conv; proc; check'
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo_stream; proc; check'
 
@@ -144,6 +151,9 @@ formal:
 	$(SBY) -f -d build/formal-width-split formal/width_conv.sby split
 	$(SBY) -f -d build/formal-width-pack-cover formal/width_conv.sby pack_cover
 	$(SBY) -f -d build/formal-width-split-cover formal/width_conv.sby split_cover
+	rm -rf build/formal-fwft-bmc build/formal-fwft-cover
+	$(SBY) -f -d build/formal-fwft-bmc formal/fwft.sby bmc
+	$(SBY) -f -d build/formal-fwft-cover formal/fwft.sby cover
 	rm -rf build/formal-stream-pack build/formal-stream-split \
 		build/formal-stream-pack-cover build/formal-stream-split-cover
 	$(SBY) -f -d build/formal-stream-pack formal/stream.sby pack
