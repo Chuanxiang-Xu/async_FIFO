@@ -32,7 +32,7 @@
 | 带 `keep`、`last` 的 `ready/valid` 流接口 | `async_fifo_stream` | 可选分包流 wrapper |
 
 大多数用户应该实例化 `async_fifo`。最小完整例子见
-[`examples/basic_fifo/`](examples/basic_fifo/)。另外两个模块放在
+[`examples/basic_fifo/`](examples/basic_fifo/)。三个 wrapper 变体放在
 `rtl/wrappers/` 下，明确表示它们是在同一个等宽 core（内核）外面增加协议行为。
 
 端口、复位、almost flag（预警标志）和 occupancy（占用量）语义集中在
@@ -42,6 +42,15 @@
 [学习异步 FIFO](docs/learning_async_fifo_CN.md)。
 
 ## 学习路线图
+
+主学习路径围绕四个互补问题展开：
+
+| 主线 | 问题 | 先看 | 继续看 |
+|---|---|---|---|
+| Cummings | 经典 Gray pointer 异步 FIFO 如何映射到本 RTL？ | [逐步教程](docs/tutorial_CN.md) | [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md)，再看 [学习异步 FIFO](docs/learning_async_fifo_CN.md) |
+| Formal | 本项目如何证明 FIFO 安全行为？ | [形式验证指南](docs/formal_verification_CN.md) | `formal/pointer_formal.sv`、`formal/core_formal.sv` 和 wrapper harness |
+| XPM 对比 | 教学 RTL 与工业 FIFO 接口期望有何差异？ | [接口与时序](docs/interface.md) | [XPM_FIFO_ASYNC 对比](docs/xpm_fifo_async_comparison_CN.md) |
+| FWFT | first-word fallthrough 与标准读时序有何区别？ | [FWFT / Fallthrough 设计说明](docs/fwft_design_CN.md) | [`async_fifo_fwft`](rtl/wrappers/async_fifo_fwft.v)、[接口与时序](docs/interface.md#equal-width-fwft-interface-async_fifo_fwft) |
 
 | 读者 | 先看 | 再看 |
 |---|---|---|
@@ -167,6 +176,7 @@ async_FIFO/
 └── test/
     ├── tb_reset_sync.sv         # 复位同步模块行为测试
     ├── tb_fifo_basic.sv         # 基础功能和水位标志测试
+    ├── tb_fifo_fwft.sv          # FWFT fallthrough 和 stall 测试
     ├── tb_fifo_stream.sv        # 包边界、keep/last 和反压测试
     ├── tb_fifo_random.sv        # 边界、回绕和随机 scoreboard 测试
     ├── fifo_assertions.sv       # FIFO 指针断言
@@ -199,6 +209,8 @@ formal/
 ├── matrix_formal.sv             # wrapper 参数矩阵 harness
 ├── matrix.sby                   # 20 项位宽/比例/地址 BMC
 ├── matrix_cover.sby             # 1:4 非空 cover
+├── fwft_formal.sv               # FWFT 可见数据与预取 harness
+├── fwft.sby                     # FWFT BMC/cover 配置
 ├── width_conv_formal.sv         # 变宽打包/拆包顺序 harness
 ├── width_conv.sby               # 变宽 wrapper BMC/cover 配置
 ├── stream_formal.sv             # 包元数据与反压 harness
@@ -493,9 +505,11 @@ wr_rstn && wr_en && !full
 rd_rstn && rd_en && !empty
 ```
 
-两个请求式 FIFO 主模块都导出 `rd_valid`，用于标记同步读数据有效。
-分包流式集成建议使用 `async_fifo_stream`，因为它进一步提供完整
-ready/valid 反压和包元数据。
+对 `async_fifo` 和 `async_fifo_width_conv`，`rd_valid` 在已接受读请求更新
+`rd_data` 时产生脉冲。对 `async_fifo_fwft`，`rd_valid` 是表示 `rd_data`
+已经持有可见数据的电平信号，`rd_en && rd_valid` 会 pop 该数据。
+分包流式集成建议使用 `async_fifo_stream`，其数据移动由完整 ready/valid
+反压和包元数据定义。
 
 `full`、`empty`、almost 标志和所有占用量输出的精确定义统一见
 [接口与时序](docs/interface.md)；高级状态信号及 wrapper 本地存储语义以该文档为准。

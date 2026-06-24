@@ -2,6 +2,15 @@
 
 This directory separates the project documentation by reader intent.
 
+## Four Study Tracks
+
+| Track | Start | Then read | What to check in RTL or verification |
+|---|---|---|---|
+| Cummings-style async FIFO theory | [Step-by-step tutorial](tutorial.md) | [Cummings-style FIFO mapping](cummings_mapping.md), then [Learning Async FIFO](learning_async_fifo.md) | `rtl/core/wptr_full.v`, `rtl/core/rptr_empty.v`, `rtl/core/sync_w2r.v`, `rtl/core/sync_r2w.v` |
+| Formal verification | [Formal Verification Guide](formal_verification.md) | [Interface and Timing](interface.md) for the public contract | `formal/pointer_formal.sv`, `formal/core_formal.sv`, wrapper harnesses |
+| Industrial interface expectations | [Interface and Timing](interface.md) | [XPM_FIFO_ASYNC Comparison](xpm_fifo_async_comparison.md) | Reset, status flags, almost flags, data counts, unsupported vendor-IP features |
+| FWFT / fallthrough behavior | [FWFT / Fallthrough Design Notes](fwft_design.md) | [Interface and Timing](interface.md#equal-width-fwft-interface-async_fifo_fwft) | `rtl/wrappers/async_fifo_fwft.v`, `test/tb_fifo_fwft.sv`, `formal/fwft_formal.sv` |
+
 ## Learning Path
 
 | Goal | Start here |

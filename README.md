@@ -34,7 +34,7 @@ demo.
 
 Most users should instantiate `async_fifo`. See
 [`examples/basic_fifo/`](examples/basic_fifo/) for the smallest complete
-example. The other two modules live under `rtl/wrappers/` to make their role
+example. The other public FIFO variants live under `rtl/wrappers/` to make their role
 explicit; they add protocol behavior around the same equal-width core.
 
 Detailed timing, reset, almost-flag, and occupancy semantics are centralized in
@@ -45,6 +45,15 @@ then read
 [Learning Async FIFO](docs/learning_async_fifo.md).
 
 ## Learning roadmap
+
+The main learning path is organized around four complementary questions:
+
+| Track | Question | Start | Continue |
+|---|---|---|---|
+| Cummings | How does the classic Gray-pointer async FIFO map to this RTL? | [Step-by-step tutorial](docs/tutorial.md) | [Cummings-Style FIFO Mapping](docs/cummings_mapping.md), then [Learning Async FIFO](docs/learning_async_fifo.md) |
+| Formal | How are FIFO safety rules proved here? | [Formal Verification Guide](docs/formal_verification.md) | `formal/pointer_formal.sv`, `formal/core_formal.sv`, and the wrapper harnesses |
+| XPM comparison | How does this teaching RTL compare with industrial FIFO expectations? | [Interface and Timing](docs/interface.md) | [XPM_FIFO_ASYNC Comparison](docs/xpm_fifo_async_comparison.md) |
+| FWFT | How does first-word fallthrough differ from standard read timing? | [FWFT / Fallthrough Design Notes](docs/fwft_design.md) | [`async_fifo_fwft`](rtl/wrappers/async_fifo_fwft.v), [Interface and Timing](docs/interface.md#equal-width-fwft-interface-async_fifo_fwft) |
 
 | Reader | Start here | Then read |
 |---|---|---|
@@ -185,6 +194,7 @@ async_FIFO/
 └── test/
     ├── tb_reset_sync.sv         # Reset synchronizer behavior test
     ├── tb_fifo_basic.sv         # Basic and almost-flag tests
+    ├── tb_fifo_fwft.sv          # FWFT fallthrough and stall tests
     ├── tb_fifo_stream.sv        # Packet, keep/last, and backpressure tests
     ├── tb_fifo_random.sv        # Boundary, wrap, and random scoreboard tests
     ├── fifo_assertions.sv       # FIFO pointer assertions
@@ -217,6 +227,8 @@ formal/
 ├── matrix_formal.sv             # Parameter-matrix wrapper harnesses
 ├── matrix.sby                   # 20 width/ratio/address BMC tasks
 ├── matrix_cover.sby             # Ratio-4 non-vacuity covers
+├── fwft_formal.sv               # FWFT visible-data and prefetch harness
+├── fwft.sby                     # FWFT BMC/cover configuration
 ├── width_conv_formal.sv         # Pack/split wrapper order harnesses
 ├── width_conv.sby               # Width-conversion BMC/cover configuration
 ├── stream_formal.sv             # Packet metadata/backpressure harnesses
@@ -516,9 +528,12 @@ A read is accepted only when:
 rd_rstn && rd_en && !empty
 ```
 
-Both request-based FIFO modules expose `rd_valid` for synchronous read timing.
-Packet-streaming integrations should prefer `async_fifo_stream`, which adds
-complete ready/valid backpressure and packet metadata.
+For `async_fifo` and `async_fifo_width_conv`, `rd_valid` pulses when `rd_data`
+has been updated by an accepted read. For `async_fifo_fwft`, `rd_valid` is a
+level signal indicating that `rd_data` already holds a visible word, and
+`rd_en && rd_valid` pops it. Packet-streaming integrations should prefer
+`async_fifo_stream`, where data movement is defined by complete ready/valid
+backpressure and packet metadata.
 
 For the precise semantics of `full`, `empty`, the almost flags, and all
 occupancy outputs, see [Interface and Timing](docs/interface.md). That document

@@ -27,6 +27,25 @@ The reference point is AMD UG974, `XPM_FIFO_ASYNC`, version 2026.1:
 | Memory selection | `FIFO_MEMORY_TYPE`, ECC, cascade-related attributes | Portable inferred RAM, no RAM-type selection parameter |
 | Sign-off model | Vendor macro plus AMD tool/report expectations | Open RTL plus documented CDC constraints, tests, and bounded formal checks |
 
+## From Industrial Expectation to Teaching RTL Contract
+
+Use this table when reading XPM-style requirements as an integrator. The
+project often supports the underlying FIFO behavior, but exposes it through a
+smaller teaching contract instead of an AMD-compatible macro interface.
+
+| XPM-style expectation | This repository's contract | Where to read next |
+|---|---|---|
+| Independent write and read clocks | Supported. The equal-width core crosses only registered Gray pointers; payload stays in dual-port RAM. | [Architecture](architecture.md), [CDC and Timing Constraints](cdc_constraints.md) |
+| Request-based write/read enables | Supported for `async_fifo`, `async_fifo_fwft`, and `async_fifo_width_conv`; stream users should use ready/valid instead. | [Interface and Timing](interface.md#transfer-qualification-summary) |
+| Standard synchronous read mode | Supported by `async_fifo`; `rd_valid` marks the cycle where the returned `rd_data` should be sampled. | [Interface and Timing](interface.md#equal-width-interface-async_fifo), [tutorial waveform](tutorial.md#a-real-waveform) |
+| First-word fallthrough read mode | Supported as the separate `async_fifo_fwft` wrapper; `rd_valid` is a visible-data level signal and `rd_en && rd_valid` pops the word. | [FWFT / Fallthrough Design Notes](fwft_design.md), [Interface and Timing](interface.md#equal-width-fwft-interface-async_fifo_fwft) |
+| Reset and reset-busy integration | Reset is destructive with separate active-low domain resets; assertion may be asynchronous, but release must be synchronized locally. No `*_rst_busy` ports are exposed. | [Interface and Timing](interface.md), [`async_reset_sync`](../rtl/util/async_reset_sync.v) |
+| Almost and programmable flags | Static `almost_full` and `almost_empty` thresholds are supported as advisory local-domain flow-control hints. Separate dynamic `prog_*` ports are not supported. | [Interface and Timing](interface.md#advanced-status-signals) |
+| Data count visibility | Equal-width `wr_used/rd_used` and wrapper `*_core_used` are conservative local views, not global snapshots or exact wrapper-pipeline occupancy. | [Interface and Timing](interface.md#advanced-status-signals) |
+| Width conversion | Supported in wrappers while preserving an equal-width CDC core. Capacity is documented in core-word and wrapper-local storage terms. | [Interface and Timing](interface.md#width-converting-interface-async_fifo_width_conv) |
+| Overflow and underflow reporting | Blocked writes and reads are non-destructive, but no `overflow` or `underflow` pulse ports are provided. | [Formal Verification Guide](formal_verification.md#from-requirement-to-property) |
+| ECC, sleep, memory primitive selection, cascade controls | Not supported. These are vendor implementation features outside this teaching RTL boundary. | [Unsupported XPM Features](#unsupported-xpm-features), [Limitations in README](../README.md#limitations--sign-off-status) |
+
 ## Interface Alignment
 
 Both designs use the same basic request idea: a write occurs only when the

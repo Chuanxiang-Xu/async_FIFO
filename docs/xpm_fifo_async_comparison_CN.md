@@ -25,6 +25,24 @@ FIFO 接口预期，哪些地方有意不同，哪些功能明确不支持。
 | 存储资源选择 | `FIFO_MEMORY_TYPE`、ECC、cascade 相关属性 | 可移植 RAM 推断，没有 RAM 类型选择参数 |
 | 签核模型 | vendor macro 加 AMD 工具/报告预期 | 开放 RTL 加 CDC 约束、测试和有界 formal |
 
+## 从工业预期到教学 RTL 契约
+
+集成者可以用这张表把 XPM 风格需求翻译到本项目。本仓库通常支持底层 FIFO 行为，
+但会通过更小的教学契约暴露出来，而不是提供 AMD 兼容 macro 接口。
+
+| XPM 风格预期 | 本仓库契约 | 继续阅读 |
+|---|---|---|
+| 独立写时钟和读时钟 | 支持。等宽 core 只跨域同步已寄存的 Gray 指针，payload 留在双口 RAM 中。 | [架构说明](architecture.md)、[CDC 与时序约束](cdc_constraints.md) |
+| 请求式写读 enable | `async_fifo`、`async_fifo_fwft`、`async_fifo_width_conv` 支持；stream 用户应使用 ready/valid。 | [接口与时序](interface.md#transfer-qualification-summary) |
+| standard 同步读模式 | `async_fifo` 支持；`rd_valid` 标记应该采样返回 `rd_data` 的周期。 | [接口与时序](interface.md#equal-width-interface-async_fifo)、[教程波形](tutorial_CN.md#7-一张真实-waveform) |
+| first-word fallthrough 读模式 | 通过独立 `async_fifo_fwft` wrapper 支持；`rd_valid` 是可见数据电平信号，`rd_en && rd_valid` pop 当前字。 | [FWFT / Fallthrough 设计说明](fwft_design_CN.md)、[接口与时序](interface.md#equal-width-fwft-interface-async_fifo_fwft) |
+| 复位和 reset-busy 集成 | 复位是破坏性的，写读域使用独立低有效复位；可异步断言，但撤销必须在本地同步。不提供 `*_rst_busy` 端口。 | [接口与时序](interface.md)、[`async_reset_sync`](../rtl/util/async_reset_sync.v) |
+| almost 和 programmable flag | 支持静态阈值的 `almost_full`、`almost_empty`，作为本地时钟域提前流控提示。不支持独立动态 `prog_*` 端口。 | [接口与时序](interface.md#advanced-status-signals) |
+| data count 可见性 | 等宽 `wr_used/rd_used` 和 wrapper `*_core_used` 是保守的本地视图，不是全局快照，也不是精确 wrapper 流水占用。 | [接口与时序](interface.md#advanced-status-signals) |
+| 位宽转换 | 通过 wrapper 支持，同时保持 CDC core 等宽。容量用 core word 和 wrapper 本地存储分别说明。 | [接口与时序](interface.md#width-converting-interface-async_fifo_width_conv) |
+| overflow/underflow 报告 | 满时写和空时读非破坏，但不提供 `overflow` 或 `underflow` 脉冲端口。 | [形式验证指南](formal_verification_CN.md#从用户需求到-property) |
+| ECC、sleep、存储 primitive 选择、cascade 控制 | 不支持。这些属于 vendor 实现特性，超出教学 RTL 边界。 | [暂不支持的 XPM 功能](#暂不支持的-xpm-功能)、[README 限制](../README-CN.md#限制与签核状态) |
+
 ## 接口对齐
 
 两个设计采用相同的基本请求思想：写请求只有在非满时被接受，读请求只有在非空时

@@ -49,10 +49,11 @@ Main-line work:
    - Be explicit that this repository is a teaching RTL project, not a vendor
      IP replacement.
 4. **FWFT / fallthrough option**
-   - Add standard-vs-FWFT read behavior as a documented option.
+   - Maintain standard-vs-FWFT read behavior as a documented option.
    - Keep the Cummings-style CDC core clean; implement fallthrough behavior as
      read-side mode/wrapper logic where possible.
-   - Add waveform examples, directed tests, and formal updates.
+   - Keep waveform examples, directed tests, and formal properties aligned with
+     any FWFT behavior changes.
 
 Optional future wrappers:
 
@@ -101,7 +102,12 @@ IP family whose behavior is hard to learn.
 - Keep English and Chinese docs paired when a document is part of the learning
   path:
   - `docs/tutorial.md` and `docs/tutorial_CN.md`
+  - `docs/cummings_mapping.md` and `docs/cummings_mapping_CN.md`
   - `docs/learning_async_fifo.md` and `docs/learning_async_fifo_CN.md`
+  - `docs/formal_verification.md` and `docs/formal_verification_CN.md`
+  - `docs/fwft_design.md` and `docs/fwft_design_CN.md`
+  - `docs/xpm_fifo_async_comparison.md` and
+    `docs/xpm_fifo_async_comparison_CN.md`
 - Use `docs/tutorial*.md` for the first-pass mental model and waveform walk.
 - Use `docs/learning_async_fifo*.md` for deeper theory and RTL reading order.
 - Use `docs/interface.md` as the authoritative contract for ports, reset,
@@ -171,10 +177,14 @@ archive.
 Before finishing changes that affect behavior or documentation:
 
 1. Run the relevant simulation or formal target.
-2. Run `python3 scripts/check_docs.py` after Markdown edits.
+2. Run `python3 scripts/check_docs.py` or `make docs-check` after Markdown
+   edits.
 3. Keep Chinese and English learning-path docs in sync.
 4. Update interface docs before or alongside public RTL behavior changes.
 5. Preserve the teaching path: intuition first, then mechanism, then RTL, then
    verification/sign-off.
 6. For open-source-facing changes, update `CONTRIBUTING.md`, README quick
    checks, or GitHub templates when contributor expectations change.
+7. Before a PR or broad handoff, prefer `make check`; for Vivado-facing CDC or
+   constraint changes, also run `make xilinx-cdc` when the licensed tool is
+   available.

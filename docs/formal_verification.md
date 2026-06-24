@@ -7,6 +7,11 @@ If you are new to the design, read the [step-by-step tutorial](tutorial.md)
 and [Learning Async FIFO](learning_async_fifo.md) first. If you need the public
 contract, read [Interface and Timing](interface.md).
 
+The properties in this guide use the same public behavior described in
+`interface.md`: standard request reads update `rd_data` with a pulsed
+`rd_valid`, FWFT reads pop visible data with `rd_en && rd_valid`, stream
+transfers use `valid && ready`, and reset is destructive coordinated startup.
+
 ## The proof strategy
 
 The formal checks are split into small harnesses so each one has a clear job:
@@ -25,6 +30,39 @@ The formal checks are split into small harnesses so each one has a clear job:
 | Request width conversion preserves slice order | [`formal/width_conv_formal.sv`](../formal/width_conv_formal.sv) | Pack/split data ordering |
 | Stream metadata stays attached to data | [`formal/stream_formal.sv`](../formal/stream_formal.sv) | `keep`, `last`, and backpressure behavior |
 | Wrapper parameters are sampled across ratios and depths | [`formal/matrix_formal.sv`](../formal/matrix_formal.sv) | Regression coverage over representative configurations |
+
+## From requirement to property
+
+Read each harness as a small translation exercise:
+
+```text
+user-visible rule -> local acceptance condition -> reference state -> assertion
+```
+
+The harnesses deliberately avoid proving internal implementation details first.
+They start from public behavior: when a transfer is accepted, what must the
+user observe later?
+
+| Requirement | Reference model | Property shape |
+|---|---|---|
+| A blocked write must not overflow storage | The write pointer should not move when `wr_en && full` | Assert the Gray write pointer is unchanged after a blocked write in `pointer_formal.sv` |
+| A blocked read must not consume data | The read pointer should not move when `rd_en && empty` | Assert the Gray read pointer is unchanged after a blocked read in `pointer_formal.sv` |
+| Accepted reads return data in FIFO order | `write_sequence` creates tokens; `read_sequence` predicts the next token | On every `rd_valid`, assert `rd_data == read_sequence` in `core_formal.sv` |
+| Synchronous read timing is visible to users | `previous_read_allow` records the last accepted read | Assert `rd_valid` matches the prior accepted read in `core_formal.sv` |
+| FWFT data must stay visible while stalled | `stalled_data` captures the visible word when `rd_valid && !rd_en` | Assert `rd_valid` remains high and `rd_data` stays equal to `stalled_data` in `fwft_formal.sv` |
+| Stream backpressure must not corrupt a packet beat | A saved payload records `{rd_data, rd_keep, rd_last}` while `rd_valid && !rd_ready` | Assert the payload remains stable until the beat is accepted in `stream_formal.sv` |
+
+This is why the core and wrapper proofs use counters instead of a full shadow
+memory. A monotonically increasing token stream is enough to make many failures
+observable: if the FIFO drops data, duplicates data, reorders data, reads from
+empty storage, or leaks stale reset contents, the next `rd_valid` or FWFT pop
+will disagree with the expected token.
+
+Assumptions are kept close to the environment, not the design. In these
+harnesses, clocks, resets, and request/ready signals provide the environment;
+the DUT still has to decide whether a transfer is legal using `full`, `empty`,
+`rd_valid`, or `ready`. Covers then ask whether interesting states are actually
+reachable, such as full occupancy, FWFT stall-and-pop, or stream final beats.
 
 The harnesses use deterministic token streams rather than a large shadow RAM
 where possible. For example, `core_formal.sv` writes an increasing sequence and
