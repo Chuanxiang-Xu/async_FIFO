@@ -205,7 +205,40 @@ vvp build/tb_fifo_tutorial.out
 - `full` 属于 `wr_clk` 域，`empty` 和 `rd_valid` 属于 `rd_clk` 域；
 - 跨域指针有同步延迟，所以 `empty`/`full` 的撤销或置位是安全但保守的。
 
-## 9. 把它映射回 RTL
+## 9. Standard read 和 FWFT read 对比
+
+上面的 waveform 展示的是标准 `async_fifo` 读契约：
+
+```text
+rd_en && !empty  请求一次读
+rd_valid         标记返回的 rd_data 有效
+```
+
+可选的 [`async_fifo_fwft`](../rtl/wrappers/async_fifo_fwft.v) wrapper 保持同一个
+Cummings 风格 CDC core，但在读侧增加 prefetch 存储。这样用户看到的读契约变成：
+
+```text
+rd_valid == 1      rd_data 上已经有可见数据
+rd_en && rd_valid  消费当前可见数据
+empty == !rd_valid
+```
+
+![Standard read versus FWFT read timing](assets/fwft_vs_standard_waveform.svg)
+
+核心差异是“谁发起第一次读”。standard 模式下，用户等待 `empty=0`，拉高
+`rd_en`，然后在 `rd_valid` 脉冲时采样 `rd_data`。FWFT 模式下，wrapper 自己发起
+内部读；经过指针同步和 RAM fetch 后，`rd_valid` 拉高，`rd_data` 保持稳定，直到
+用户用 `rd_en` 消费它。
+
+所以 FWFT 的读侧更接近 valid/ready 输出：
+
+- standard 模式：先请求，再收到数据；
+- FWFT 模式：先看到有效数据，再 pop 它。
+
+底层 CDC 安全逻辑不变。数据仍然保存在双时钟 RAM 中，跨域的仍然只有 Gray
+pointer。FWFT 只是包在 core 外面的读侧行为层。
+
+## 10. 把它映射回 RTL
 
 你可以按下面顺序读代码：
 

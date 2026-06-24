@@ -7,6 +7,7 @@ constraints, wrappers, simulation/formal checks, and a small PYNQ-Z2 board
 demo.
 
 [Use it](#which-module-should-i-use) ·
+[Docs](docs/README.md) ·
 [Tutorial](docs/tutorial.md) ·
 [Cummings map](docs/cummings_mapping.md) ·
 [Learn it](docs/learning_async_fifo.md) ·
@@ -108,7 +109,7 @@ sign-off package.
 
 ## Read before integration
 
-The repository provides three synthesizable FIFO entry points. Select one
+The repository provides four synthesizable FIFO entry points. Select one
 according to the transaction semantics:
 
 - `async_fifo`: equal-width request interface;

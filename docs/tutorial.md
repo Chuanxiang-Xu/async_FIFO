@@ -225,7 +225,43 @@ The important lessons:
 - synchronized pointers add latency, so `empty` and `full` change
   conservatively.
 
-## 9. Map the tutorial back to RTL
+## 9. Standard read versus FWFT read
+
+The waveform above shows the standard `async_fifo` read contract:
+
+```text
+rd_en && !empty  requests a read
+rd_valid         marks the returned rd_data
+```
+
+The optional [`async_fifo_fwft`](../rtl/wrappers/async_fifo_fwft.v) wrapper
+keeps the same Cummings-style CDC core, but adds read-side prefetch storage.
+That changes the user-visible read contract:
+
+```text
+rd_valid == 1      rd_data already holds a visible word
+rd_en && rd_valid  consumes that visible word
+empty == !rd_valid
+```
+
+![Standard read versus FWFT read timing](assets/fwft_vs_standard_waveform.svg)
+
+The main difference is who starts the first read. In standard mode, the user
+waits for `empty=0`, asserts `rd_en`, and then samples `rd_data` when
+`rd_valid` pulses. In FWFT mode, the wrapper issues the internal read by
+itself; after pointer synchronization and the RAM fetch, `rd_valid` goes high
+and `rd_data` stays stable until the user consumes it with `rd_en`.
+
+This is why FWFT often feels closer to a valid/ready output:
+
+- standard mode: request first, then receive;
+- FWFT mode: observe valid data first, then pop it.
+
+The core CDC safety argument is unchanged. Data still lives in the dual-clock
+RAM, and only Gray pointers cross clock domains. FWFT is a read-side behavior
+layer around that core.
+
+## 10. Map the tutorial back to RTL
 
 Read the implementation in this order:
 

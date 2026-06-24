@@ -6,6 +6,7 @@
 和一个简单的 PYNQ-Z2 板级 demo。
 
 [怎么用](#我应该使用哪个模块) ·
+[文档目录](docs/README.md) ·
 [逐步教程](docs/tutorial_CN.md) ·
 [Cummings 映射](docs/cummings_mapping_CN.md) ·
 [原理深读](docs/learning_async_fifo_CN.md) ·
@@ -99,7 +100,7 @@ production sign-off 包。
 
 ## 使用前必读
 
-这个仓库提供三个可综合 FIFO 入口，选择接口时应先确定事务语义：
+这个仓库提供四个可综合 FIFO 入口，选择接口时应先确定事务语义：
 
 - `async_fifo`：等宽、请求式读写；
 - `async_fifo_fwft`：等宽、读侧 first-word fallthrough 行为；
