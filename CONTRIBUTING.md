@@ -63,6 +63,30 @@ Keep each pull request focused on one change. Before submitting:
 For RTL changes, explain how overflow, underflow, pointer wraparound, reset,
 and independent clock behavior were considered.
 
+## What to run
+
+Use the smallest relevant set while iterating, then run the broader checks
+before opening a PR.
+
+| Change area | Minimum checks |
+|---|---|
+| Markdown only | `make docs-check` |
+| Tutorial waveform or tutorial testbench | `make tutorial`, `make docs-check` |
+| Equal-width FIFO RTL | `make tb_equal_width tb_fifo_random`, `make lint`, `make cdc`, `make synth`, relevant formal target |
+| Width-conversion wrapper | `make tb_pack_16_to_32 tb_split_32_to_16 tb_width_conv_pack_buffer`, `make formal` or relevant `width_conv.sby` task |
+| Stream wrapper | stream simulation targets, `make lint`, relevant `stream.sby` task |
+| Reset behavior | reset simulations, `formal/reset_skew.sby`, and stream reset checks if wrappers are affected |
+| CDC constraints or synchronizers | `make cdc`, `make synth`, `make xilinx-cdc` when Vivado 2025.2 is available |
+| Release metadata | `make release-check` |
+
+When in doubt, run:
+
+```bash
+make check
+```
+
+`make check` does not run the licensed Vivado flow.
+
 ## RTL style
 
 - Use the `async_fifo*` prefix for primary modules and files.
