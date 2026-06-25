@@ -1,11 +1,17 @@
 # Interface and Timing
 
-This project exposes four primary synthesizable top-level modules:
+This project exposes seven primary synthesizable top-level modules:
 
 - `async_fifo`: equal-width asynchronous FIFO with an explicit read-valid
   output;
 - `async_fifo_fwft`: equal-width asynchronous FIFO with first-word
   fallthrough read behavior;
+- `async_bidir_fifo`: two independent equal-width asynchronous FIFO channels
+  for full-duplex CDC;
+- `async_fifo_ramif`: experimental equal-width asynchronous FIFO control with
+  an external simple dual-port RAM interface;
+- `async_bidir_ramif_fifo`: experimental full-duplex composition of two
+  `async_fifo_ramif` channels with independent external RAM interfaces;
 - `async_fifo_width_conv`: request-based width-converting asynchronous FIFO;
 - `async_fifo_stream`: recommended packet-aware ready/valid interface.
 
@@ -40,6 +46,9 @@ only when the local reset is released and the local status flag allows it:
 |---|---|---|
 | `async_fifo` | `wr_rstn && wr_en && !full` | `rd_rstn && rd_en && !empty` |
 | `async_fifo_fwft` | `wr_rstn && wr_en && !full` | `rd_rstn && rd_en && rd_valid` pops visible data |
+| `async_bidir_fifo` | `a_rstn && a_tx_en && !a_tx_full`; `b_rstn && b_tx_en && !b_tx_full` | `b_rstn && b_rx_en && !b_rx_empty`; `a_rstn && a_rx_en && !a_rx_empty` |
+| `async_fifo_ramif` | `wr_rstn && wr_en && !full`; also asserts `ram_wr_en` | `rd_rstn && rd_en && !empty`; also asserts `ram_rd_en` |
+| `async_bidir_ramif_fifo` | `a_rstn && a_tx_en && !a_tx_full`; `b_rstn && b_tx_en && !b_tx_full`; also asserts direction-local RAM write enables | `b_rstn && b_rx_en && !b_rx_empty`; `a_rstn && a_rx_en && !a_rx_empty`; also asserts direction-local RAM read enables |
 | `async_fifo_width_conv` | `wr_rstn && wr_en && !full` | `rd_rstn && rd_en && !empty` |
 
 The standard request-style modules expose `rd_valid`; consumers must qualify `rd_data`
@@ -175,6 +184,170 @@ view and remains advisory; the pop qualifier is `rd_en && rd_valid`.
 
 For the design rationale and test plan, see
 [FWFT / Fallthrough Design Notes](fwft_design.md).
+
+## Bidirectional equal-width interface: `async_bidir_fifo`
+
+`async_bidir_fifo` is a full-duplex composition wrapper. It contains two
+independent standard `async_fifo` instances:
+
+```text
+a_tx_* in domain A -> b_rx_* in domain B
+b_tx_* in domain B -> a_rx_* in domain A
+```
+
+It does not share RAM, flags, or pointer state between directions. It does not
+provide runtime direction switching or cross-direction transaction atomicity.
+
+### Parameters
+
+| Parameter | Description |
+|---|---|
+| `DATA_WIDTH` | Width of each stored word in both directions |
+| `ADDR_WIDTH` | RAM address width for each internal FIFO; each direction has `2**ADDR_WIDTH` words |
+| `ALMOST_FULL_THRESHOLD` | Assert each transmit almost-full flag at or above this occupied-word count |
+| `ALMOST_EMPTY_THRESHOLD` | Assert each receive almost-empty flag at or below this readable-word count |
+
+### Ports
+
+| Port group | Domain | Description |
+|---|---|---|
+| `a_clk`, `a_rstn` | A | A-domain clock and active-low reset |
+| `b_clk`, `b_rstn` | B | B-domain clock and active-low reset |
+| `a_tx_en`, `a_tx_data`, `a_tx_full`, `a_tx_almost_full`, `a_tx_used` | A | A-to-B write request, data, and A-domain status |
+| `b_rx_en`, `b_rx_data`, `b_rx_valid`, `b_rx_empty`, `b_rx_almost_empty`, `b_rx_used` | B | A-to-B read request, data, and B-domain status |
+| `b_tx_en`, `b_tx_data`, `b_tx_full`, `b_tx_almost_full`, `b_tx_used` | B | B-to-A write request, data, and B-domain status |
+| `a_rx_en`, `a_rx_data`, `a_rx_valid`, `a_rx_empty`, `a_rx_almost_empty`, `a_rx_used` | A | B-to-A read request, data, and A-domain status |
+
+A-to-B writes are accepted on `a_clk` when:
+
+```text
+a_rstn && a_tx_en && !a_tx_full
+```
+
+A-to-B reads are accepted on `b_clk` when:
+
+```text
+b_rstn && b_rx_en && !b_rx_empty
+```
+
+The B-to-A direction uses the symmetric conditions:
+
+```text
+b_rstn && b_tx_en && !b_tx_full
+a_rstn && a_rx_en && !a_rx_empty
+```
+
+`b_rx_valid` qualifies `b_rx_data`, and `a_rx_valid` qualifies `a_rx_data`.
+Almost flags and occupancy values are local-domain views for their own
+direction only. For example, `a_tx_full` describes A-to-B storage and does not
+imply anything about `b_tx_full`.
+
+For the design rationale, see
+[Bidirectional FIFO Wrapper Design](bidir_fifo_design.md).
+
+## External RAM interface: `async_fifo_ramif`
+
+`async_fifo_ramif` exposes the same standard equal-width FIFO contract as
+`async_fifo`, but the storage array is provided by the integrating design. The
+wrapper still owns pointer arithmetic, Gray-pointer synchronization,
+`full`/`empty`, almost flags, occupancy, and `rd_valid`.
+
+The external RAM must implement the fixed contract documented in
+[External RAM Interface FIFO Design](ramif_design.md): simple dual-port memory,
+synchronous write, synchronous read, one read-clock latency, and no RAM
+backpressure.
+
+### Parameters
+
+| Parameter | Description |
+|---|---|
+| `DATA_WIDTH` | Width of each stored word |
+| `ADDR_WIDTH` | RAM address width; external RAM depth must be `2**ADDR_WIDTH` words |
+| `ALMOST_FULL_THRESHOLD` | Assert at or above this occupied-word count |
+| `ALMOST_EMPTY_THRESHOLD` | Assert at or below this readable-word count |
+
+### FIFO-side ports
+
+The user-facing FIFO ports match `async_fifo`:
+
+| Port group | Domain | Description |
+|---|---|---|
+| `wr_clk`, `wr_rstn`, `wr_en`, `wr_data`, `full`, `almost_full`, `wr_used` | write | Standard write request and local write-domain status |
+| `rd_clk`, `rd_rstn`, `rd_en`, `rd_data`, `rd_valid`, `empty`, `almost_empty`, `rd_used` | read | Standard read request, returned data, and local read-domain status |
+
+### RAM-side ports
+
+| Port | Direction | Description |
+|---|---|---|
+| `ram_wr_clk` | output | Forwarded `wr_clk` |
+| `ram_wr_en` | output | External RAM write enable for an accepted FIFO write |
+| `ram_wr_addr` | output | External RAM write address |
+| `ram_wr_data` | output | External RAM write data |
+| `ram_rd_clk` | output | Forwarded `rd_clk` |
+| `ram_rd_en` | output | External RAM read enable for an accepted FIFO read |
+| `ram_rd_addr` | output | External RAM read address |
+| `ram_rd_data` | input | External RAM read data returned after one `rd_clk` edge |
+
+The wrapper generates RAM enables only for accepted FIFO transfers:
+
+```text
+ram_wr_en = wr_rstn && wr_en && !full
+ram_rd_en = rd_rstn && rd_en && !empty
+```
+
+`rd_valid` is generated by the FIFO wrapper and qualifies `rd_data`, which is
+the returned `ram_rd_data`. Reset clears FIFO pointer/control state only; it
+does not clear or initialize the external RAM contents.
+
+## Bidirectional external RAM interface: `async_bidir_ramif_fifo`
+
+`async_bidir_ramif_fifo` composes two independent `async_fifo_ramif`
+instances:
+
+```text
+a_tx_* in domain A -> a2b_ram_* storage -> b_rx_* in domain B
+b_tx_* in domain B -> b2a_ram_* storage -> a_rx_* in domain A
+```
+
+It is the RAMIF counterpart of `async_bidir_fifo`: the CDC channels are
+full-duplex, but there is no shared RAM, shared pointer state, runtime
+direction switching, or cross-direction transaction atomicity. Each direction
+must connect to a separate simple dual-port RAM that satisfies the same
+one-read-clock-latency contract as `async_fifo_ramif`.
+
+### Parameters
+
+| Parameter | Description |
+|---|---|
+| `DATA_WIDTH` | Width of each stored word in both directions |
+| `ADDR_WIDTH` | RAM address width for each external RAM; each direction has `2**ADDR_WIDTH` words |
+| `ALMOST_FULL_THRESHOLD` | Assert each transmit almost-full flag at or above this occupied-word count |
+| `ALMOST_EMPTY_THRESHOLD` | Assert each receive almost-empty flag at or below this readable-word count |
+
+### FIFO-side ports
+
+| Port group | Domain | Description |
+|---|---|---|
+| `a_clk`, `a_rstn` | A | A-domain clock and active-low reset |
+| `b_clk`, `b_rstn` | B | B-domain clock and active-low reset |
+| `a_tx_en`, `a_tx_data`, `a_tx_full`, `a_tx_almost_full`, `a_tx_used` | A | A-to-B write request, data, and A-domain status |
+| `b_rx_en`, `b_rx_data`, `b_rx_valid`, `b_rx_empty`, `b_rx_almost_empty`, `b_rx_used` | B | A-to-B read request, data, and B-domain status |
+| `b_tx_en`, `b_tx_data`, `b_tx_full`, `b_tx_almost_full`, `b_tx_used` | B | B-to-A write request, data, and B-domain status |
+| `a_rx_en`, `a_rx_data`, `a_rx_valid`, `a_rx_empty`, `a_rx_almost_empty`, `a_rx_used` | A | B-to-A read request, data, and A-domain status |
+
+### RAM-side ports
+
+| Port group | Direction | Description |
+|---|---|---|
+| `a2b_ram_wr_*`, `a2b_ram_rd_*` | output/input | External RAM interface for the A-to-B channel |
+| `b2a_ram_wr_*`, `b2a_ram_rd_*` | output/input | External RAM interface for the B-to-A channel |
+
+The per-direction RAM ports have the same meaning as `async_fifo_ramif`:
+`*_ram_wr_clk`, `*_ram_wr_en`, `*_ram_wr_addr`, `*_ram_wr_data`,
+`*_ram_rd_clk`, `*_ram_rd_en`, `*_ram_rd_addr`, and `*_ram_rd_data`.
+
+For the design rationale, see
+[Bidirectional RAMIF FIFO Design](bidir_ramif_fifo_design.md).
 
 ## Width-converting interface: `async_fifo_width_conv`
 

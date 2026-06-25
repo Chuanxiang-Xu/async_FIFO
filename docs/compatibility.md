@@ -27,6 +27,9 @@ Registration and service-environment instructions are in
 
 - `async_fifo`
 - `async_fifo_fwft`
+- `async_bidir_fifo`
+- `async_fifo_ramif` experimental external-RAM wrapper
+- `async_bidir_ramif_fifo` experimental full-duplex external-RAM wrapper
 - `async_fifo_width_conv`
 - `async_fifo_stream`
 - `async_reset_sync`
@@ -35,10 +38,11 @@ The FIFO modules require power-of-two core depth. Width conversion supports
 integer power-of-two ratios. Reset is destructive and coordinated; unilateral
 runtime reset with retained data is not supported.
 
-Formal release coverage currently contains 47 tasks: fixed deep harnesses,
+Formal release coverage currently contains 53 tasks: fixed deep harnesses,
 two symbolic clock-rate/phase core BMCs, a 20-task concrete wrapper matrix,
-the FWFT wrapper BMC/cover pair, and associated cover tasks. Verilator `-Wall`
-is warning-free and warnings are treated as CI failures.
+the FWFT, bidirectional, RAMIF, and bidirectional RAMIF wrapper BMC/cover pairs,
+and associated cover tasks. Verilator `-Wall` is warning-free and warnings are
+treated as CI failures.
 
 ## Xilinx integration requirements
 

@@ -16,6 +16,9 @@ demo.
 [Formal](docs/formal_verification.md) ·
 [XPM comparison](docs/xpm_fifo_async_comparison.md) ·
 [FWFT design](docs/fwft_design.md) ·
+[Bidir design](docs/bidir_fifo_design.md) ·
+[RAMIF design](docs/ramif_design.md) ·
+[Bidir RAMIF design](docs/bidir_ramif_fifo_design.md) ·
 [Interface](docs/interface.md) ·
 [Architecture](docs/architecture.md) ·
 [CDC constraints](docs/cdc_constraints.md) ·
@@ -25,17 +28,32 @@ demo.
 
 ## Which module should I use?
 
+Most users should instantiate `async_fifo`. It is the main teaching and
+integration entry point: a small equal-width asynchronous FIFO built around the
+Cummings-style Gray-pointer CDC core. See
+[`examples/basic_fifo/`](examples/basic_fifo/) for the smallest complete
+example.
+
 | Need | Module | Role |
 |---|---|---|
 | A small, equal-width asynchronous FIFO | `async_fifo` | **Start here.** Minimal public entry point |
+
+The other public FIFO variants are optional wrappers around the same
+equal-width core. Use them only when their added interface behavior matches the
+system you are building:
+
+| Need | Module | Role |
+|---|---|---|
 | Equal-width FIFO with first-word fallthrough | `async_fifo_fwft` | Optional FWFT read-side wrapper |
 | Different write and read widths | `async_fifo_width_conv` | Optional width-conversion wrapper |
 | Ready/valid streaming with `keep` and `last` | `async_fifo_stream` | Optional packet-stream wrapper |
+| Full-duplex equal-width CDC | `async_bidir_fifo` | Optional composition of two independent FIFO channels: A->B and B->A |
+| Equal-width FIFO with custom external RAM | `async_fifo_ramif` | Experimental RAM-interface wrapper |
+| Full-duplex CDC with custom external RAM | `async_bidir_ramif_fifo` | Experimental composition of bidirectional CDC and RAMIF |
 
-Most users should instantiate `async_fifo`. See
-[`examples/basic_fifo/`](examples/basic_fifo/) for the smallest complete
-example. The other public FIFO variants live under `rtl/wrappers/` to make their role
-explicit; they add protocol behavior around the same equal-width core.
+Wrappers live under `rtl/wrappers/` to make their role explicit; they add
+protocol or composition behavior around the core rather than changing the
+pointer crossing mechanism.
 
 Detailed timing, reset, almost-flag, and occupancy semantics are centralized in
 [Interface and Timing](docs/interface.md). The implementation layers are shown
@@ -46,7 +64,15 @@ then read
 
 ## Learning roadmap
 
-The main learning path is organized around four complementary questions:
+At a glance, the intended reading route is:
+
+```text
+Cummings theory -> RTL core -> Formal proofs -> XPM expectations -> FWFT option
+        |              |              |                 |                |
+ tutorial/map     core modules    proof guide      interface gap     read mode
+```
+
+The main learning path is organized around complementary questions:
 
 | Track | Question | Start | Continue |
 |---|---|---|---|
@@ -54,6 +80,9 @@ The main learning path is organized around four complementary questions:
 | Formal | How are FIFO safety rules proved here? | [Formal Verification Guide](docs/formal_verification.md) | `formal/pointer_formal.sv`, `formal/core_formal.sv`, and the wrapper harnesses |
 | XPM comparison | How does this teaching RTL compare with industrial FIFO expectations? | [Interface and Timing](docs/interface.md) | [XPM_FIFO_ASYNC Comparison](docs/xpm_fifo_async_comparison.md) |
 | FWFT | How does first-word fallthrough differ from standard read timing? | [FWFT / Fallthrough Design Notes](docs/fwft_design.md) | [`async_fifo_fwft`](rtl/wrappers/async_fifo_fwft.v), [Interface and Timing](docs/interface.md#equal-width-fwft-interface-async_fifo_fwft) |
+| Bidir | How should full-duplex CDC be built without changing the core? | [Bidirectional FIFO Wrapper Design](docs/bidir_fifo_design.md) | [`async_bidir_fifo`](rtl/wrappers/async_bidir_fifo.v), [Interface and Timing](docs/interface.md#bidirectional-equal-width-interface-async_bidir_fifo) |
+| RAMIF | How can storage be externalized without changing FIFO CDC control? | [External RAM Interface FIFO Design](docs/ramif_design.md) | [`async_fifo_ramif`](rtl/wrappers/async_fifo_ramif.v), [Interface and Timing](docs/interface.md#external-ram-interface-async_fifo_ramif) |
+| Bidir RAMIF | How should full-duplex CDC and external RAM be composed? | [Bidirectional RAMIF FIFO Design](docs/bidir_ramif_fifo_design.md) | [`async_bidir_ramif_fifo`](rtl/wrappers/async_bidir_ramif_fifo.v), [Interface and Timing](docs/interface.md#bidirectional-external-ram-interface-async_bidir_ramif_fifo) |
 
 | Reader | Start here | Then read |
 |---|---|---|
@@ -63,6 +92,9 @@ The main learning path is organized around four complementary questions:
 | Verification reader | [Learning Async FIFO](docs/learning_async_fifo.md) | [Formal Verification Guide](docs/formal_verification.md) |
 | Vendor-IP comparer | [Interface and Timing](docs/interface.md) | [XPM_FIFO_ASYNC Comparison](docs/xpm_fifo_async_comparison.md) |
 | FWFT user or maintainer | [Interface and Timing](docs/interface.md) | [FWFT / Fallthrough Design Notes](docs/fwft_design.md) |
+| Full-duplex CDC integrator | [Bidirectional FIFO Wrapper Design](docs/bidir_fifo_design.md) | [Interface and Timing](docs/interface.md#bidirectional-equal-width-interface-async_bidir_fifo) |
+| Custom RAM integrator | [External RAM Interface FIFO Design](docs/ramif_design.md) | [Interface and Timing](docs/interface.md#external-ram-interface-async_fifo_ramif) |
+| Full-duplex custom RAM integrator | [Bidirectional RAMIF FIFO Design](docs/bidir_ramif_fifo_design.md) | [Interface and Timing](docs/interface.md#bidirectional-external-ram-interface-async_bidir_ramif_fifo) |
 | CDC/timing reviewer | [Architecture](docs/architecture.md) | [CDC Constraints](docs/cdc_constraints.md) |
 | Board-flow user | [Simple board demo](#simple-board-demo) | [PYNQ-Z2 Vivado Validation](docs/pynq_z2_vivado.md) |
 
@@ -120,53 +152,24 @@ sign-off package.
 
 ## Read before integration
 
-The repository provides four synthesizable FIFO entry points. Select one
-according to the transaction semantics:
+Use this section as a short gate before wiring the FIFO into a design. The
+complete public contract lives in [Interface and Timing](docs/interface.md),
+the physical implementation checklist lives in
+[CDC Constraints](docs/cdc_constraints.md#sign-off-checklist), and proof
+coverage is explained in
+[Formal Verification Guide](docs/formal_verification.md#bounds-and-coverage).
 
-- `async_fifo`: equal-width request interface;
-- `async_fifo_fwft`: equal-width request interface with first-word
-  fallthrough read behavior;
-- `async_fifo_width_conv`: request interface with an integer power-of-two
-  width ratio;
-- `async_fifo_stream`: packet-aware `ready/valid`, `keep`, and `last`
-  interface, recommended for new streaming integrations.
-
-It also provides `async_reset_sync`, a reusable integration helper for
-asynchronous reset assertion and synchronous release in one clock domain.
-
-The following contracts are mandatory:
-
-1. **Transfer qualification:** request transfers occur only on local clock
-   edges satisfying `wr_rstn && wr_en && !full` or
-   `rd_rstn && rd_en && !empty`; qualify returned
-   data with `rd_valid`. Stream transfers occur only on `valid && ready`.
-2. **Reset semantics:** `wr_rstn` and `rd_rstn` are active-low asynchronous
-   reset inputs. They may assert asynchronously, but the integrator must
-   deassert each reset synchronously in its local domain. Reset is destructive;
-   do not transfer until both domains complete coordinated initialization.
-   Data-preserving unilateral runtime reset is unsupported.
-3. **Depth and width:** core depth is a power of two. Width conversion requires
-   an integer power-of-two ratio and enough `ADDR_WIDTH` for at least two
-   internal wide words.
-4. **Capacity units:** `ADDR_WIDTH` describes narrow-word-equivalent core RAM
-   capacity, excluding wrapper pack, pending, split, and prefetch slots.
-   `wr_core_used/rd_core_used` count only the core, not all in-flight beats.
-5. **Local status views:** flags and occupancy are generated in their owning
-   domains. Remote-pointer synchronization conservatively delays flag
-   deassertion; these signals are not a simultaneous global occupancy snapshot.
-   Almost flags are advisory flow-control hints, not transfer qualifiers.
-6. **CDC constraints:** payload stays in dual-port RAM; only registered
-   Gray-coded pointers cross domains. Two-flop synchronizers do not replace
-   STA/CDC sign-off. Constrain maximum delay or bus skew from each Gray source
-   bank to its first synchronizer stage.
-7. **Verification scope:** simulation and 47 formal tasks combine deep fixed
-   schedules, symbolic clock-rate/phase BMCs, and a concrete parameter matrix.
-   They are not one symbolic proof over every integer parameter, continuously
-   varying clock waveform, or target device.
+| Topic | Rule of thumb |
+|---|---|
+| Module choice | Start with `async_fifo`; use FWFT, bidirectional, RAMIF, width-conversion, or stream wrappers only when their interface semantics match the system. |
+| Transfer qualification | Request FIFOs move data only on accepted local-clock transfers; stream FIFOs move data only on `valid && ready`. |
+| Reset | `wr_rstn` and `rd_rstn` assert asynchronously, release synchronously in their own domains, and discard queued data. |
+| Status signals | `full`, `empty`, almost flags, and occupancy are local-domain views with conservative remote-pointer latency. |
+| CDC sign-off | Payload stays in RAM; only registered Gray pointers cross domains and still require target STA/CDC constraints. |
+| Verification scope | Simulation and formal checks are strong regressions over selected bounds, harnesses, and parameter samples, not universal device sign-off. |
 
 In this documentation, a *beat* is one interface transfer, a *core word* is one
-equal-width internal RAM item, and a *payload* includes data plus metadata. BMC
-means bounded model checking; cover tasks establish bounded reachability.
+equal-width internal RAM item, and a *payload* includes data plus metadata.
 
 ## 1. Project structure
 
@@ -184,6 +187,9 @@ async_FIFO/
 │   │   └── sync_r2w.v           # Read pointer into write domain
 │   ├── wrappers/
 │   │   ├── async_fifo_fwft.v       # Optional equal-width FWFT wrapper
+│   │   ├── async_bidir_fifo.v      # Optional full-duplex equal-width wrapper
+│   │   ├── async_fifo_ramif.v      # Experimental external-RAM wrapper
+│   │   ├── async_bidir_ramif_fifo.v # Experimental full-duplex RAMIF wrapper
 │   │   ├── async_fifo_width_conv.v # Optional width-conversion wrapper
 │   │   └── async_fifo_stream.v     # Optional packet-stream wrapper
 │   └── util/
@@ -196,6 +202,9 @@ async_FIFO/
     ├── tb_fifo_basic.sv         # Basic and almost-flag tests
     ├── tb_fifo_fwft.sv          # FWFT fallthrough and stall tests
     ├── tb_fifo_stream.sv        # Packet, keep/last, and backpressure tests
+    ├── tb_fifo_bidir.sv         # Full-duplex independent-channel tests
+    ├── tb_fifo_ramif.sv         # External RAM interface contract tests
+    ├── tb_fifo_bidir_ramif.sv   # Full-duplex RAMIF composition tests
     ├── tb_fifo_random.sv        # Boundary, wrap, and random scoreboard tests
     ├── fifo_assertions.sv       # FIFO pointer assertions
     ├── stream_assertions.sv     # Ready/valid stability assertions
@@ -235,7 +244,7 @@ formal/
 └── stream.sby                   # Stream-wrapper BMC/cover configuration
 ```
 
-The project provides four reusable FIFO entry points:
+The project provides seven reusable FIFO entry points:
 
 ```text
 async_fifo                   equal width: DATA_WIDTH/ADDR_WIDTH
@@ -243,6 +252,17 @@ async_fifo                   equal width: DATA_WIDTH/ADDR_WIDTH
 
 async_fifo_fwft              equal width with first-word fallthrough
 └── async_fifo_core          conventional equal-width async FIFO core
+
+async_bidir_fifo             full-duplex equal-width CDC
+├── async_fifo               A transmit to B receive
+└── async_fifo               B transmit to A receive
+
+async_fifo_ramif             experimental external RAM interface
+└── pointer/sync/full/empty control with caller-provided storage
+
+async_bidir_ramif_fifo       full-duplex CDC with external RAM interfaces
+├── async_fifo_ramif         A transmit to B receive
+└── async_fifo_ramif         B transmit to A receive
 
 async_fifo_width_conv        width conversion: WDATA_WIDTH/RDATA_WIDTH/ADDR_WIDTH
 └── async_fifo_core          conventional equal-width async FIFO core
@@ -261,6 +281,9 @@ async_reset_sync             optional per-domain reset integration helper
 Use `async_fifo` for a simple equal-width FIFO,
 `async_fifo_fwft` when the first readable word should appear before a read
 request,
+`async_bidir_fifo` for independent full-duplex A->B and B->A channels,
+`async_fifo_ramif` when storage must be supplied externally,
+`async_bidir_ramif_fifo` when both full-duplex directions need external RAM,
 `async_fifo_width_conv` for request-based width conversion, and
 `async_fifo_stream` for packet-streaming integrations.
 
@@ -563,6 +586,7 @@ Then run the checks below.
 | Markdown only | `make docs-check` |
 | Tutorial waveform | `make tutorial` and `make docs-check` |
 | Equal-width FIFO RTL | `make tb_equal_width tb_fifo_random` |
+| Bidirectional or RAMIF wrappers | `make tb_bidir_basic tb_ramif_basic tb_bidir_ramif_basic`, `make formal-bidir-ramif` |
 | Width-conversion wrapper | `make tb_pack_16_to_32 tb_split_32_to_16` |
 | Stream wrapper | `make tb_fifo_random tb_stream_random` |
 | CDC or constraints | `make cdc` and `make synth` |

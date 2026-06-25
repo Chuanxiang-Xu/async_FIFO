@@ -15,6 +15,9 @@
 [形式验证](docs/formal_verification_CN.md) ·
 [XPM 对比](docs/xpm_fifo_async_comparison_CN.md) ·
 [FWFT 设计](docs/fwft_design_CN.md) ·
+[双向设计](docs/bidir_fifo_design_CN.md) ·
+[RAMIF 设计](docs/ramif_design_CN.md) ·
+[双向 RAMIF 设计](docs/bidir_ramif_fifo_design_CN.md) ·
 [接口](docs/interface.md) ·
 [架构](docs/architecture.md) ·
 [CDC 约束](docs/cdc_constraints.md) ·
@@ -24,16 +27,28 @@
 
 ## 我应该使用哪个模块？
 
+大多数用户应该实例化 `async_fifo`。它是本项目主要的教学和集成入口：一个围绕
+Cummings 风格 Gray 指针 CDC core 构建的小型等宽异步 FIFO。最小完整例子见
+[`examples/basic_fifo/`](examples/basic_fifo/)。
+
 | 需求 | 模块 | 角色 |
 |---|---|---|
 | 小型等宽异步 FIFO | `async_fifo` | **从这里开始。** 最小公开用户入口 |
+
+其他公开 FIFO 变体都是围绕同一个等宽 core 的可选 wrapper。只有在系统确实需要它们
+额外的接口行为时才使用：
+
+| 需求 | 模块 | 角色 |
+|---|---|---|
 | 等宽 FIFO，并需要 first-word fallthrough | `async_fifo_fwft` | 可选 FWFT 读侧 wrapper |
 | 写读位宽不同 | `async_fifo_width_conv` | 可选位宽转换 wrapper |
 | 带 `keep`、`last` 的 `ready/valid` 流接口 | `async_fifo_stream` | 可选分包流 wrapper |
+| full-duplex 等宽 CDC | `async_bidir_fifo` | 可选组合 wrapper，包含两个独立 FIFO 通道：A->B 和 B->A |
+| 等宽 FIFO，并需要自定义外部 RAM | `async_fifo_ramif` | 实验性 RAM 接口 wrapper |
+| full-duplex CDC，并需要自定义外部 RAM | `async_bidir_ramif_fifo` | 实验性双向 RAMIF 组合 wrapper |
 
-大多数用户应该实例化 `async_fifo`。最小完整例子见
-[`examples/basic_fifo/`](examples/basic_fifo/)。三个 wrapper 变体放在
-`rtl/wrappers/` 下，明确表示它们是在同一个等宽 core（内核）外面增加协议行为。
+wrapper 变体放在 `rtl/wrappers/` 下，明确表示它们是在 core 外面增加协议或组合行为，
+而不是改变指针跨域机制。
 
 端口、复位、almost flag（预警标志）和 occupancy（占用量）语义集中在
 [接口与时序](docs/interface.md)。
@@ -43,7 +58,15 @@
 
 ## 学习路线图
 
-主学习路径围绕四个互补问题展开：
+一眼看项目的推荐阅读路线：
+
+```text
+Cummings 理论 -> RTL core -> Formal 证明 -> XPM 接口期望 -> FWFT 选项
+       |              |              |                |              |
+  教程/映射       core 模块       证明指南        接口差异       读模式
+```
+
+主学习路径围绕几个互补问题展开：
 
 | 主线 | 问题 | 先看 | 继续看 |
 |---|---|---|---|
@@ -51,6 +74,9 @@
 | Formal | 本项目如何证明 FIFO 安全行为？ | [形式验证指南](docs/formal_verification_CN.md) | `formal/pointer_formal.sv`、`formal/core_formal.sv` 和 wrapper harness |
 | XPM 对比 | 教学 RTL 与工业 FIFO 接口期望有何差异？ | [接口与时序](docs/interface.md) | [XPM_FIFO_ASYNC 对比](docs/xpm_fifo_async_comparison_CN.md) |
 | FWFT | first-word fallthrough 与标准读时序有何区别？ | [FWFT / Fallthrough 设计说明](docs/fwft_design_CN.md) | [`async_fifo_fwft`](rtl/wrappers/async_fifo_fwft.v)、[接口与时序](docs/interface.md#equal-width-fwft-interface-async_fifo_fwft) |
+| 双向 | full-duplex CDC 如何在不改变 core 的前提下实现？ | [双向 FIFO Wrapper 设计](docs/bidir_fifo_design_CN.md) | [`async_bidir_fifo`](rtl/wrappers/async_bidir_fifo.v)、[接口与时序](docs/interface.md#bidirectional-equal-width-interface-async_bidir_fifo) |
+| RAMIF | 如何在不改变 FIFO CDC 控制的前提下外置存储？ | [外部 RAM 接口 FIFO 设计](docs/ramif_design_CN.md) | [`async_fifo_ramif`](rtl/wrappers/async_fifo_ramif.v)、[接口与时序](docs/interface.md#external-ram-interface-async_fifo_ramif) |
+| 双向 RAMIF | full-duplex CDC 和外部 RAM 应如何组合？ | [双向 RAMIF FIFO 设计](docs/bidir_ramif_fifo_design_CN.md) | [`async_bidir_ramif_fifo`](rtl/wrappers/async_bidir_ramif_fifo.v)、[接口与时序](docs/interface.md#bidirectional-external-ram-interface-async_bidir_ramif_fifo) |
 
 | 读者 | 先看 | 再看 |
 |---|---|---|
@@ -60,6 +86,9 @@
 | 验证读者 | [学习异步 FIFO](docs/learning_async_fifo_CN.md) | [形式验证指南](docs/formal_verification_CN.md) |
 | Vendor IP 对比读者 | [接口与时序](docs/interface.md) | [XPM_FIFO_ASYNC 对比](docs/xpm_fifo_async_comparison_CN.md) |
 | FWFT 用户或维护者 | [接口与时序](docs/interface.md) | [FWFT / Fallthrough 设计说明](docs/fwft_design_CN.md) |
+| full-duplex CDC 集成者 | [双向 FIFO Wrapper 设计](docs/bidir_fifo_design_CN.md) | [接口与时序](docs/interface.md#bidirectional-equal-width-interface-async_bidir_fifo) |
+| 自定义 RAM 集成者 | [外部 RAM 接口 FIFO 设计](docs/ramif_design_CN.md) | [接口与时序](docs/interface.md#external-ram-interface-async_fifo_ramif) |
+| full-duplex 自定义 RAM 集成者 | [双向 RAMIF FIFO 设计](docs/bidir_ramif_fifo_design_CN.md) | [接口与时序](docs/interface.md#bidirectional-external-ram-interface-async_bidir_ramif_fifo) |
 | CDC/时序审阅者 | [架构说明](docs/architecture.md) | [CDC 约束](docs/cdc_constraints.md) |
 | 板级流程使用者 | [简单板级 demo](#简单板级-demo) | [PYNQ-Z2 Vivado 验证](docs/pynq_z2_vivado.md) |
 
@@ -111,44 +140,22 @@ production sign-off 包。
 
 ## 使用前必读
 
-这个仓库提供四个可综合 FIFO 入口，选择接口时应先确定事务语义：
+这段只是集成前的短检查口。完整公开接口契约见
+[接口与时序](docs/interface.md)，物理实现签核清单见
+[CDC 约束](docs/cdc_constraints.md#sign-off-checklist)，证明覆盖范围见
+[形式验证指南](docs/formal_verification_CN.md#bound-和覆盖范围)。
 
-- `async_fifo`：等宽、请求式读写；
-- `async_fifo_fwft`：等宽、读侧 first-word fallthrough 行为；
-- `async_fifo_width_conv`：整数 2 次幂比例的请求式位宽转换；
-- `async_fifo_stream`：带 `ready/valid`、`keep` 和 `last` 的分包流接口，
-  推荐用于新的流式集成。
-
-仓库还提供 `async_reset_sync`，用于在单个时钟域中实现复位异步断言和
-同步撤销。
-
-集成前必须理解以下契约：
-
-1. **传输判定**：请求式接口只在 `wr_rstn && wr_en && !full` 或
-   `rd_rstn && rd_en && !empty` 的本地时钟沿接受请求，读取结果必须用 `rd_valid`
-   限定；流式接口只在 `valid && ready` 时完成传输。
-2. **复位语义**：`wr_rstn`、`rd_rstn` 为低有效异步复位输入。复位可以
-   异步断言（拉低），但必须由集成方分别在本地时钟域同步撤销（拉高）。复位
-   是破坏性的；两侧完成协调初始化前不得传输，运行中单侧复位并保留数据
-   不在支持范围内。
-3. **深度与位宽**：core（内核）深度必须是 2 的幂；变宽比例必须是整数 2 次幂，
-   且 `ADDR_WIDTH` 必须足以产生至少 2 个内部宽字。
-4. **容量单位**：`ADDR_WIDTH` 描述 core RAM 的窄字等效容量，不包含
-   wrapper 的拼包、pending、拆包和预取槽。`wr_core_used/rd_core_used`
-   只统计 core，不是整个模块的在途拍数。
-5. **本地状态视图**：`full`、`empty`、`almost_full/almost_empty` 和占用量都在各自
-   时钟域产生。远端指针同步延迟会使它们保守地延迟撤销；它们不是同一时刻
-   的全局占用快照。almost 标志仅用于提前流控，不能替代正式传输条件。
-6. **CDC 约束**：payload 保存在双口 RAM 中，只有寄存后的格雷码指针跨域。
-   两级同步器不能替代 STA/CDC 签核；实现工程必须约束格雷码总线到第一级
-   同步器的最大延迟或总线偏斜。
-7. **验证边界**：仿真和 47 项形式验证任务结合了固定深层时钟调度、符号化
-   时钟频率/相位 BMC 和具体参数矩阵，但不构成一个同时覆盖所有整数参数、
-   连续变化时钟波形和所有目标器件的符号化证明。
+| 主题 | 快速规则 |
+|---|---|
+| 模块选择 | 默认从 `async_fifo` 开始；只有系统确实需要对应语义时再选 FWFT、双向、RAMIF、变宽或 stream wrapper。 |
+| 传输判定 | 请求式 FIFO 只在本地时钟域接受传输时搬运数据；stream FIFO 只在 `valid && ready` 时搬运数据。 |
+| 复位 | `wr_rstn` 和 `rd_rstn` 异步断言、各自时钟域同步释放，并丢弃已排队数据。 |
+| 状态信号 | `full`、`empty`、almost 标志和 occupancy 都是本地时钟域视图，包含保守的远端指针同步延迟。 |
+| CDC 签核 | payload 保存在 RAM 中；只有寄存后的 Gray pointer 跨域，但目标工程仍必须做 STA/CDC 约束。 |
+| 验证范围 | 仿真和 formal 是选定 bound、harness 和参数样本上的强回归，不是所有器件场景的通用签核。 |
 
 本文中，“拍（beat）”表示一次接口传输，“core word”表示内部等宽 RAM
-数据字，“payload”表示数据及其随附元数据。BMC 指有界模型检查，cover
-用于证明目标状态在给定深度内可达。
+数据字，“payload”表示数据及其随附元数据。
 
 ## 1. 项目结构
 
@@ -166,6 +173,9 @@ async_FIFO/
 │   │   └── sync_r2w.v           # 读指针同步到写时钟域
 │   ├── wrappers/
 │   │   ├── async_fifo_fwft.v       # 可选等宽 FWFT wrapper
+│   │   ├── async_bidir_fifo.v      # 可选 full-duplex 等宽 wrapper
+│   │   ├── async_fifo_ramif.v      # 实验性外部 RAM wrapper
+│   │   ├── async_bidir_ramif_fifo.v # 实验性双向 RAMIF wrapper
 │   │   ├── async_fifo_width_conv.v # 可选位宽转换 wrapper
 │   │   └── async_fifo_stream.v     # 可选分包流 wrapper
 │   └── util/
@@ -178,6 +188,9 @@ async_FIFO/
     ├── tb_fifo_basic.sv         # 基础功能和水位标志测试
     ├── tb_fifo_fwft.sv          # FWFT fallthrough 和 stall 测试
     ├── tb_fifo_stream.sv        # 包边界、keep/last 和反压测试
+    ├── tb_fifo_bidir.sv         # full-duplex 独立通道测试
+    ├── tb_fifo_ramif.sv         # 外部 RAM 接口契约测试
+    ├── tb_fifo_bidir_ramif.sv   # 双向 RAMIF 组合测试
     ├── tb_fifo_random.sv        # 边界、回绕和随机 scoreboard 测试
     ├── fifo_assertions.sv       # FIFO 指针断言
     ├── stream_assertions.sv     # ready/valid 稳定性断言
@@ -217,7 +230,7 @@ formal/
 └── stream.sby                   # 流式 wrapper BMC/cover 配置
 ```
 
-项目提供四个可复用 FIFO 入口：
+项目提供七个可复用 FIFO 入口：
 
 ```text
 async_fifo                   等宽接口，配置 DATA_WIDTH/ADDR_WIDTH
@@ -225,6 +238,17 @@ async_fifo                   等宽接口，配置 DATA_WIDTH/ADDR_WIDTH
 
 async_fifo_fwft              等宽接口，带 first-word fallthrough 读行为
 └── async_fifo_core          标准等宽异步 FIFO 内核
+
+async_bidir_fifo             full-duplex 等宽 CDC
+├── async_fifo               A transmit 到 B receive
+└── async_fifo               B transmit 到 A receive
+
+async_fifo_ramif             实验性外部 RAM 接口
+└── pointer/sync/full/empty 控制，存储由调用方提供
+
+async_bidir_ramif_fifo       带外部 RAM 接口的 full-duplex CDC
+├── async_fifo_ramif         A transmit 到 B receive
+└── async_fifo_ramif         B transmit 到 A receive
 
 async_fifo_width_conv        变宽接口，配置 WDATA_WIDTH/RDATA_WIDTH/ADDR_WIDTH
 └── async_fifo_core          标准等宽异步 FIFO 内核
@@ -241,8 +265,10 @@ async_reset_sync             可选的单时钟域复位集成辅助模块
 ```
 
 简单等宽场景使用 `async_fifo`；如果希望第一个可读数据在读请求前自动出现在输出端，
-使用 `async_fifo_fwft`；请求式变宽场景使用
-`async_fifo_width_conv`，新的分包流式接口使用 `async_fifo_stream`。
+使用 `async_fifo_fwft`；独立 full-duplex A->B/B->A 通道使用
+`async_bidir_fifo`；需要外部提供存储时使用 `async_fifo_ramif`；两个 full-duplex 方向都
+需要外部 RAM 时使用 `async_bidir_ramif_fifo`；请求式变宽场景使用 `async_fifo_width_conv`，
+新的分包流式接口使用 `async_fifo_stream`。
 
 ## 2. 参数如何设置
 
@@ -538,6 +564,7 @@ conda env update -n async_fifo -f environment.yml --prune
 | 只改 Markdown | `make docs-check` |
 | tutorial waveform | `make tutorial` 和 `make docs-check` |
 | 等宽 FIFO RTL | `make tb_equal_width tb_fifo_random` |
+| 双向或 RAMIF wrapper | `make tb_bidir_basic tb_ramif_basic tb_bidir_ramif_basic`，`make formal-bidir-ramif` |
 | 位宽转换 wrapper | `make tb_pack_16_to_32 tb_split_32_to_16` |
 | stream wrapper | `make tb_fifo_random tb_stream_random` |
 | CDC 或约束 | `make cdc` 和 `make synth` |

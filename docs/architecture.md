@@ -8,6 +8,9 @@ wrappers and CDC implementation details:
 ```mermaid
 flowchart TD
     A[async_fifo<br/>minimal public entry] --> C[async_fifo_core]
+    B[async_bidir_fifo<br/>two independent directions] --> A
+    R[async_fifo_ramif<br/>external RAM interface] --> P[pointer/sync/control]
+    BR[async_bidir_ramif_fifo<br/>two RAMIF directions] --> R
     W[async_fifo_width_conv<br/>optional wrapper] --> C
     S[async_fifo_stream<br/>optional wrapper] --> C
     C --> M[fifo_mem<br/>dual-clock storage]
@@ -26,14 +29,16 @@ flowchart TD
 |---|---|
 | [`rtl/async_fifo.v`](../rtl/async_fifo.v) | Stable, minimal equal-width user entry point |
 | [`rtl/core/`](../rtl/core/) | Storage, pointers, Gray-code synchronization, and local status generation |
-| [`rtl/wrappers/`](../rtl/wrappers/) | Width conversion and packet-stream protocol behavior |
+| [`rtl/wrappers/`](../rtl/wrappers/) | FWFT read behavior, full-duplex composition, external-RAM adaptation, width conversion, and packet-stream protocol behavior |
 | [`rtl/util/`](../rtl/util/) | Optional integration helpers that are not part of FIFO data movement |
 
 `async_fifo.v` deliberately contains no CDC algorithm of its own: it preserves
 a simple public module name while delegating implementation to
-`async_fifo_core`. Both wrappers also instantiate the same equal-width core;
-packing, splitting, ready/valid buffering, and packet metadata remain outside
-the CDC mechanism.
+`async_fifo_core`. The wrappers also instantiate or compose the same
+equal-width public/core FIFO path, or the same external-RAM control path for
+RAMIF variants. FWFT prefetch, full-duplex channel composition, external-RAM
+adaptation, packing, splitting, ready/valid buffering, and packet metadata
+remain outside the CDC mechanism.
 
 Only Gray-coded pointers cross through synchronizer chains. Payload data stays
 in the dual-clock memory. See [Interface and Timing](interface.md) for port and
