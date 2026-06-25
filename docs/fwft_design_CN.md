@@ -10,12 +10,29 @@
 |---|---|
 | standard 同步读 | 已实现 |
 | FWFT / fallthrough 读模式 | 已实现等宽 wrapper |
-| RTL 参数或 wrapper | `rtl/wrappers/async_fifo_fwft.v` |
+| 公开边界 | 独立 `async_fifo_fwft` wrapper，不作为 `async_fifo` 参数 |
+| RTL 实现 | `rtl/wrappers/async_fifo_fwft.v` |
 | directed tests | `test/tb_fifo_fwft.sv` |
 | formal properties | `formal/fwft_formal.sv` 和 `formal/fwft.sby` |
 
 这个 wrapper 在不扰动 Cummings 风格 CDC core 的前提下加入 FWFT 行为。实现方式
 是在现有等宽 core 外面增加读侧 prefetch 和输出槽逻辑。
+
+## 边界决定
+
+FWFT 会作为独立公开模块暴露：
+
+```text
+async_fifo       standard 同步读 FIFO
+async_fifo_fwft  等宽 FWFT 读侧 wrapper
+```
+
+教学接口里的基础 `async_fifo` 不增加 `READ_MODE` 或 `FWFT` 参数。这样同一个模块名
+不会因为参数不同而改变 `rd_en`、`rd_valid` 和 `empty` 的含义，也能把
+Cummings 风格 CDC core 和 fallthrough prefetch 行为作为两个独立概念讲清楚。
+
+如果未来 release 增加 XPM 风格兼容层，那一层可以暴露类似 `READ_MODE` 的参数。
+但它应该在内部转换到 `async_fifo` 或 `async_fifo_fwft`，而不是改变教学主入口。
 
 ## 基线：当前 Standard Read
 
@@ -194,13 +211,19 @@ formal properties 对应同一份契约：
 - stall 时输出数据稳定；
 - 读复位期间不得断言 `rd_valid`。
 
-## 仍需决定的问题
+## 范围和非目标
 
-- FWFT 是否应该永久保持为单独模块 `async_fifo_fwft`，还是未来变成 `async_fifo`
-  的参数？
-- 当前 `rd_used` 包含两个读侧槽和 pending fetch 的定义是否适合作为长期公开契约？
-- FWFT 是否应该在未来支持 width-conversion wrapper，还是保持等宽限定？
-- stream 模式是否复用同一套 prefetch 层，还是继续保持自己的 ready/valid 实现？
+已实现的 FWFT option 会保持收窄：
 
-保守建议：继续把等宽 FWFT wrapper 保持为独立模块。当前 `async_fifo` 的契约保持
-不变，除非未来 release 有明确理由再加入 `READ_MODE` 参数。
+- FWFT 只支持等宽接口。
+- 位宽转换继续由 `async_fifo_width_conv` 负责。
+- 包级 ready/valid 行为继续由 `async_fifo_stream` 负责。
+- `async_fifo` 保持 standard 同步读时序。
+- 教学主入口不暴露 XPM 兼容的 `READ_MODE` 参数。
+
+未来允许两个扩展，但它们都应该留在 core 外面：
+
+- 如果真实用例证明值得增加额外存储和验证工作，可以新增专门的 FWFT 变宽 wrapper；
+- 如果项目未来需要 vendor-facing facade，可以新增 XPM-like 兼容 wrapper。
+
+这两类扩展都不应该把 fallthrough 行为推入 Gray-pointer CDC 机制。

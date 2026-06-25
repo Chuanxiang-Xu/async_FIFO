@@ -11,13 +11,34 @@ around the unchanged Cummings-style CDC core.
 |---|---|
 | Standard synchronous read | Implemented |
 | FWFT / fallthrough read mode | Implemented as an equal-width wrapper |
-| RTL parameter or wrapper | `rtl/wrappers/async_fifo_fwft.v` |
+| Public boundary | Separate `async_fifo_fwft` wrapper, not a parameter on `async_fifo` |
+| RTL implementation | `rtl/wrappers/async_fifo_fwft.v` |
 | Directed tests | `test/tb_fifo_fwft.sv` |
 | Formal properties | `formal/fwft_formal.sv` and `formal/fwft.sby` |
 
 The wrapper adds FWFT behavior without disturbing the Cummings-style CDC core.
 It implements the fallthrough behavior as read-side prefetch and output-slot
 logic around the existing equal-width core.
+
+## Boundary Decision
+
+FWFT is intentionally exposed as a separate public module:
+
+```text
+async_fifo       standard synchronous-read FIFO
+async_fifo_fwft  equal-width FWFT read-side wrapper
+```
+
+The base `async_fifo` module will not grow a `READ_MODE` or `FWFT` parameter in
+the teaching interface. That keeps one module name from changing the meaning of
+`rd_en`, `rd_valid`, and `empty` based on a parameter. It also keeps the
+Cummings-style CDC core and the fallthrough prefetch behavior readable as two
+separate ideas.
+
+If a future release adds an XPM-style compatibility layer, that layer may expose
+a `READ_MODE`-like parameter. Such a wrapper should translate into
+`async_fifo` or `async_fifo_fwft` internally rather than changing the core
+entry point.
 
 ## Baseline: Current Standard Read
 
@@ -213,16 +234,23 @@ Formal properties mirror the same contract:
 - stalled output data is stable;
 - no `rd_valid` is asserted during read reset.
 
-## Open Decisions
+## Scope and Non-Goals
 
-- Should FWFT stay permanently as a separate module, `async_fifo_fwft`, or
-  eventually become a parameter on `async_fifo`?
-- Is the current `rd_used` definition, including both slots and pending fetch,
-  the right long-term public contract?
-- Should FWFT support width-conversion wrappers later, or stay equal-width only?
-- Should stream mode reuse the same prefetch layer, or remain its own
-  ready/valid implementation?
+The implemented FWFT option is intentionally narrow:
 
-Conservative recommendation: keep the equal-width FWFT wrapper separate. Keep
-the current `async_fifo` contract unchanged unless a later release has a clear
-reason to add a `READ_MODE` parameter.
+- FWFT is equal-width only.
+- Width conversion remains in `async_fifo_width_conv`.
+- Packet ready/valid behavior remains in `async_fifo_stream`.
+- `async_fifo` keeps standard synchronous-read timing.
+- No XPM-compatible `READ_MODE` parameter is exposed on the teaching entry
+  point.
+
+Two future extensions are allowed, but they should stay outside the core:
+
+- a dedicated FWFT width-conversion wrapper, if a real use case justifies the
+  extra storage and verification work;
+- an XPM-like compatibility wrapper, if the project later wants a vendor-facing
+  facade.
+
+Neither extension should push fallthrough behavior into the Gray-pointer CDC
+mechanism.

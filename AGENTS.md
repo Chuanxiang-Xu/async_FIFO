@@ -55,15 +55,42 @@ Main-line work:
    - Keep waveform examples, directed tests, and formal properties aligned with
      any FWFT behavior changes.
 
-Optional future wrappers:
+Optional future wrappers are allowed only as conservative compositions around
+the existing teaching core:
 
-- `async_bidir_fifo`: two independent async FIFO channels for full-duplex CDC.
-- `async_fifo_ramif`: experimental external/custom RAM backend.
-- `async_bidir_ramif_fifo`: composition of bidirectional CDC and RAM interface.
+1. **`async_bidir_fifo`**
+   - Implement full-duplex CDC as two independent one-way FIFO channels:
+     `a2b` and `b2a`.
+   - Prefer direct composition of existing public FIFO modules over a clever
+     shared pointer/RAM fabric.
+   - Do not add runtime direction controls such as `a_dir`/`b_dir` for the
+     normal full-duplex wrapper. A direction-switched shared-RAM design is a
+     different half-duplex/resource-sharing study and should not be the public
+     `async_bidir_fifo` contract.
+   - Document that the two directions are independent: one side becoming full
+     or empty does not imply anything about the opposite direction, and the
+     wrapper provides no cross-direction transaction atomicity.
+2. **`async_fifo_ramif`**
+   - Treat this as an experimental external/custom RAM backend for one FIFO
+     direction.
+   - Define the RAM contract before RTL: clocking, read latency, read-data
+     validity, write enable behavior, collision expectations, reset meaning,
+     and whether the RAM can ever backpressure requests.
+   - Keep the CDC pointer mechanism unchanged. The RAM interface may replace
+     storage, but it must not move payload bits into synchronizers or change
+     Gray-pointer full/empty reasoning.
+3. **`async_bidir_ramif_fifo`**
+   - Build this only after both `async_bidir_fifo` and `async_fifo_ramif`
+     semantics are documented and tested.
+   - Implement it as a composition of two RAM-interface FIFO directions, not
+     as a new bidirectional CDC algorithm.
+   - Keep RAM-interface limitations explicit, especially around read latency,
+     collision behavior, reset, and sign-off responsibility.
 
-These optional wrappers are allowed as future study, but they are not the main
-identity of the project. They must not obscure the core learning path or pollute
-the equal-width CDC core.
+These optional wrappers are future study, not the main identity of the project.
+They must not obscure the core learning path, pollute the equal-width CDC core,
+or replace the clear Cummings-style single-direction FIFO as the main teaching
+unit.
 
 ## What 10/10 Means
 
@@ -106,6 +133,10 @@ IP family whose behavior is hard to learn.
   - `docs/learning_async_fifo.md` and `docs/learning_async_fifo_CN.md`
   - `docs/formal_verification.md` and `docs/formal_verification_CN.md`
   - `docs/fwft_design.md` and `docs/fwft_design_CN.md`
+  - `docs/bidir_fifo_design.md` and `docs/bidir_fifo_design_CN.md`
+  - `docs/ramif_design.md` and `docs/ramif_design_CN.md`
+  - `docs/bidir_ramif_fifo_design.md` and
+    `docs/bidir_ramif_fifo_design_CN.md`
   - `docs/xpm_fifo_async_comparison.md` and
     `docs/xpm_fifo_async_comparison_CN.md`
 - Use `docs/tutorial*.md` for the first-pass mental model and waveform walk.
