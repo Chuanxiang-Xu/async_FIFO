@@ -168,13 +168,21 @@ netlist. This rationale does not permit data-preserving one-sided reset.
 
 ## Sign-off checklist
 
-- Both clocks are defined accurately.
-- Gray crossings are constrained without a higher-priority exception
-  overriding them.
-- Synchronizer chains are recognized in synthesis and CDC reports.
-- Gray source registers directly drive the crossing paths.
-- Gray-bus maximum delay or skew is constrained.
-- Recovery/removal behavior is checked for reset release.
-- Dual-port RAM inference matches the intended device primitive.
-- CDC reports contain no unexplained violations.
-- Post-route timing and constraint coverage reports are reviewed.
+Use this checklist when integrating the FIFO into a real FPGA project. The
+repository can provide templates and regression checks, but the consuming
+project owns the final report review.
+
+| Area | Check | Evidence to keep |
+|---|---|---|
+| Clocks | Define `wr_clk` and `rd_clk` with the correct periods, generated-clock relationships, and uncertainty. | Top-level XDC/SDC plus timing summary |
+| Clock relationship | Treat the domains as asynchronous unless the board or clocking architecture proves a fixed relationship. | Clock interaction or CDC report |
+| Gray paths | Apply max-delay or bus-skew constraints from each Gray source register bank to the first synchronizer stage. | Constraint report showing all `ADDR_WIDTH + 1` bits in both directions |
+| Exceptions | Confirm broad false-path or asynchronous-clock-group exceptions do not override the intended Gray-path constraints. | Exception/constraint-priority report |
+| Synchronizers | Confirm two preserved stages, `ASYNC_REG` or equivalent recognition, close placement, and no inserted combinational logic. | Post-synthesis and post-route CDC reports |
+| Endpoint matching | Confirm the constrained endpoints match the synthesized FIFO instance, especially after hierarchy changes or wrapper insertion. | Output from `check_async_fifo_cdc` or an equivalent tool query |
+| Reset release | Verify reset deassertion recovery/removal and local synchronization in both domains. | Reset timing and CDC/reset methodology report |
+| RAM inference | Confirm the payload memory maps to the intended dual-port RAM primitive or accepted distributed RAM implementation. | Synthesis utilization and RAM inference report |
+| Reset waiver | If the tool reports RAM address or enable changes during asynchronous reset, document the destructive-reset waiver conditions from this page. | Waiver note tied to synthesized gates and reset gating |
+| Timing closure | Review setup/hold timing, bus skew, unconstrained paths, and constraint coverage after implementation, not only after synthesis. | Post-route timing, bus-skew, and coverage reports |
+| CDC closure | Resolve or explicitly waive all CDC findings involving the FIFO instance; do not waive payload crossings as if they were pointer crossings. | CDC report with sign-off notes |
+| Regression | Run repository checks relevant to the integration change before handoff. | `make check`; plus `make xilinx-cdc` when Vivado 2025.2 is available |

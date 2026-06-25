@@ -27,6 +27,9 @@ The formal checks are split into small harnesses so each one has a clear job:
 | Reset release works write-first or read-first | [`formal/reset_skew_formal.sv`](../formal/reset_skew_formal.sv) | Coordinated startup after reset skew |
 | FWFT visible pops preserve order | [`formal/fwft_formal.sv`](../formal/fwft_formal.sv) | No loss, duplication, or reordering through the prefetch slots |
 | FWFT stalled output stays stable | [`formal/fwft_formal.sv`](../formal/fwft_formal.sv) | Correct fallthrough backpressure behavior |
+| Bidirectional channels preserve order independently | [`formal/bidir_formal.sv`](../formal/bidir_formal.sv) | Full-duplex wrapper composition does not couple A->B and B->A data streams |
+| External RAM interface preserves standard FIFO timing | [`formal/ramif_formal.sv`](../formal/ramif_formal.sv) | One-cycle RAM contract, ordering, and `rd_valid` alignment |
+| Bidirectional RAMIF channels preserve order independently | [`formal/bidir_ramif_formal.sv`](../formal/bidir_ramif_formal.sv) | Full-duplex external-RAM composition keeps A->B and B->A RAMIF channels isolated |
 | Request width conversion preserves slice order | [`formal/width_conv_formal.sv`](../formal/width_conv_formal.sv) | Pack/split data ordering |
 | Stream metadata stays attached to data | [`formal/stream_formal.sv`](../formal/stream_formal.sv) | `keep`, `last`, and backpressure behavior |
 | Wrapper parameters are sampled across ratios and depths | [`formal/matrix_formal.sv`](../formal/matrix_formal.sv) | Regression coverage over representative configurations |
@@ -92,6 +95,9 @@ sby -f -d build/formal-pointer formal/pointer.sby
 sby -f -d build/formal-core-bmc formal/core.sby bmc
 sby -f -d build/formal-core-cover formal/core.sby cover
 sby -f -d build/formal-fwft-bmc formal/fwft.sby bmc
+sby -f -d build/formal-bidir-bmc formal/bidir.sby bmc
+sby -f -d build/formal-ramif-bmc formal/ramif.sby bmc
+sby -f -d build/formal-bidir-ramif-bmc formal/bidir_ramif.sby bmc
 sby -f -d build/formal-width-pack formal/width_conv.sby pack
 sby -f -d build/formal-stream-pack formal/stream.sby pack
 ```
@@ -106,6 +112,9 @@ four commands above have been run successfully from this repository:
 | `formal/core.sby bmc` | PASS | Checks bounded core ordering, status, occupancy, and `rd_valid` |
 | `formal/core.sby cover` | PASS | Produces traces for full and post-depth read progress |
 | `formal/fwft.sby bmc` | PASS | Checks FWFT pop ordering, stable stalls, reset clearing, and visible `empty` |
+| `formal/bidir.sby bmc` | PASS | Checks independent A->B and B->A ordering and local backpressure |
+| `formal/ramif.sby bmc` | PASS | Checks ordering and `rd_valid` alignment with a one-cycle external RAM model |
+| `formal/bidir_ramif.sby bmc` | PASS | Checks independent A->B and B->A ordering through two one-cycle external RAM models |
 | `formal/width_conv.sby pack` | PASS | Checks one request-wrapper packing path |
 
 The Makefile also runs `make formal-matrix`, which sweeps representative
@@ -133,6 +142,16 @@ After that, read the wrapper harnesses:
 - [`formal/fwft_formal.sv`](../formal/fwft_formal.sv) proves that the FWFT
   wrapper presents visible data in order, holds it stable while stalled, and
   clears the visible output during read reset;
+- [`formal/bidir_formal.sv`](../formal/bidir_formal.sv) proves that the
+  full-duplex wrapper preserves independent token streams in both directions
+  and keeps backpressure local to the affected channel;
+- [`formal/ramif_formal.sv`](../formal/ramif_formal.sv) proves that the
+  external RAM-interface wrapper preserves standard FIFO ordering and
+  `rd_valid` timing when connected to a one-cycle synchronous RAM model;
+- [`formal/bidir_ramif_formal.sv`](../formal/bidir_ramif_formal.sv) proves
+  that the bidirectional RAMIF wrapper keeps the two external-RAM channels
+  independent, including ordering, `rd_valid` alignment, and local
+  backpressure;
 - [`formal/width_conv_formal.sv`](../formal/width_conv_formal.sv) proves
   little-slice-first request conversion in both directions;
 - [`formal/stream_formal.sv`](../formal/stream_formal.sv) proves packet
@@ -148,11 +167,41 @@ reachable inside the bounded model:
 - the FIFO can become full;
 - reads can progress beyond one FIFO depth;
 - FWFT can expose a first word, stall it, and pop beyond one FIFO depth;
+- both bidirectional and bidirectional RAMIF channels can fill and produce
+  valid reads;
+- the RAMIF wrapper can fill and return valid reads through the external RAM
+  model;
 - wrapper pack and split paths can produce repeated outputs;
 - stream final and non-final packet transfers are reachable.
 
 These covers make the proofs less vacuous and give useful traces when learning
 how the design moves.
+
+## Bounds and Coverage
+
+The formal tasks are bounded because this repository is optimized for readable
+teaching harnesses and routine CI runtime. A PASS means the solver explored all
+states allowed by that harness, parameter set, assumptions, and depth; it does
+not mean every possible FIFO parameter or physical implementation was proved.
+
+The bounds are chosen to make the most important FIFO failure modes observable:
+
+| Harness | Why the bound is useful | What it still does not prove |
+|---|---|---|
+| Pointer | Exercises reset, allowed pointer movement, blocked full/empty requests, and Gray one-bit transitions. | Every possible synchronizer physical implementation or routed delay. |
+| Core BMC | Uses a tiny depth so full, empty, wraparound, and reads beyond one FIFO depth are reachable quickly. | One symbolic proof over every `DATA_WIDTH`, `ADDR_WIDTH`, or clock waveform. |
+| Reset skew | Checks write-first and read-first coordinated startup with requests held off until initialization completes. | Data-preserving one-sided reset while traffic continues. |
+| FWFT | Covers visible fallthrough data, stalled output stability, prefetch movement, reset clearing, and pops beyond one depth. | Every possible output-pipeline or vendor FWFT latency choice. |
+| Bidir | Checks two independent token streams and local backpressure across the composed A->B and B->A channels. | Cross-direction transaction atomicity or shared-resource arbitration, which the wrapper intentionally does not provide. |
+| RAMIF | Checks a one-cycle synchronous external RAM model, RAM enable alignment, ordering, and `rd_valid` timing. | Variable-latency RAMs, wait states, collision semantics, or target macro timing. |
+| Width conversion | Checks representative pack and split ratios with token ordering through wrapper-local storage. | Arbitrary non-power-of-two ratios or every integer parameter combination. |
+| Stream | Checks ready/valid backpressure, packet metadata stability, and pack/split stream paths. | Protocol behavior outside the documented ready/valid contract. |
+| Matrix | Samples equal-width, pack, and split configurations across request and stream wrappers. | Exhaustive coverage of all legal widths and depths. |
+
+When changing RTL, treat the current bounds as regression tripwires. If a new
+feature adds storage, latency, or a new state machine, increase the relevant
+depth or add a cover that demonstrates the new state can be reached before
+trusting the proof.
 
 ## Boundaries
 
