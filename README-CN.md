@@ -117,6 +117,9 @@ PYNQ-Z2 示例为 `xc7z020clg400-1` 构建了一个可综合 smoke test：100 MH
 75 MHz 读时钟通过 FIFO 搬运计数序列。LED0 是 sticky mismatch 指示，LED2 只有在
 持续成功读取时才会闪烁，LED3 表示 MMCM locked。
 
+这个板级流程验证的是最小 `async_fifo` core 集成和 Xilinx Gray pointer 约束。
+可选 wrapper 由仿真、formal、lint 和通用综合检查覆盖，不在这个板级 demo 中例化。
+
 ```bash
 make pynq-z2
 ```
@@ -636,6 +639,9 @@ make check
 125 MHz PL 时钟，经 MMCM 产生 100 MHz 写时钟和 75 MHz 读时钟，持续
 传输递增数据，用 LED0 粘滞显示数据顺序错误，并用 LED2 显示成功读取
 进度。
+
+该设计刻意只例化最小 `async_fifo` 顶层，用于验证 core 集成和 Xilinx CDC
+约束；可选 wrapper 使用各自的仿真、formal、lint 和通用综合目标覆盖。
 
 ```bash
 make pynq-z2

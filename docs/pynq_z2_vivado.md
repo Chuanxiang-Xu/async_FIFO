@@ -3,6 +3,12 @@
 This example checks synthesis, implementation, CDC constraints, timing, BRAM
 inference, and a simple on-board data sequence using a PYNQ-Z2.
 
+Scope note: this board flow validates the minimal `async_fifo` integration and
+the Xilinx Gray-pointer constraint strategy. Optional wrappers such as FWFT,
+bidirectional FIFO, RAMIF, bidirectional RAMIF, width conversion, and stream
+interfaces are covered by simulation, formal checks, lint, and generic
+synthesis; they are not instantiated in this board demo.
+
 ## Target
 
 - Device: Zynq-7000 XC7Z020, package CLG400, speed grade -1
@@ -146,7 +152,9 @@ independent of a Zynq block design.
 
 Passing this example validates one device, clock configuration, parameter set,
 and Vivado version. It does not prove every legal FIFO configuration or replace
-the repository's simulation, assertions, and formal checks. The reported build
-result also does not by itself prove correct behavior on physical hardware;
-after programming the board, LED0 must remain off, LED2 must keep blinking,
-and LED3 must remain on.
+the repository's simulation, assertions, and formal checks. It also does not
+validate the optional wrapper top levels; use the wrapper-specific simulation,
+formal, lint, and synthesis targets for those modules. The reported build
+result does not by itself prove correct behavior on physical hardware; after
+programming the board, LED0 must remain off, LED2 must keep blinking, and LED3
+must remain on.

@@ -8,6 +8,9 @@ Versioning.
 - Clarified RAMIF external-memory integration guidance, including vendor RAM
   inference or macro binding, fixed one-cycle read latency, same-address
   collision assumptions, and sign-off evidence for project-owned RAM wrappers.
+- Clarified that the PYNQ-Z2 board flow validates the minimal `async_fifo`
+  core and Xilinx CDC constraints, while optional wrappers are covered by
+  simulation, formal, lint, and generic synthesis checks.
 
 ## [1.1.0] - 2026-06-24
 

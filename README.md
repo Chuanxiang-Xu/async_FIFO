@@ -126,6 +126,10 @@ The PYNQ-Z2 example builds a synthesizable smoke test for
 sequence through the FIFO. LED0 is a sticky mismatch indicator, LED2 blinks
 only after successful reads, and LED3 shows MMCM lock.
 
+This board flow validates the minimal `async_fifo` core integration and Xilinx
+Gray-pointer constraints. Optional wrappers are covered by simulation, formal,
+lint, and generic synthesis checks rather than by this board demo.
+
 ```bash
 make pynq-z2
 ```
@@ -661,6 +665,10 @@ A board-specific validation design is included for the PYNQ-Z2
 (`xc7z020clg400-1`). It uses the 125 MHz PL clock, generates 100 MHz write and
 75 MHz read clocks, continuously transfers a counter sequence, reports a
 sticky mismatch on LED0, and shows successful read progress on LED2.
+
+The design intentionally instantiates only the minimal `async_fifo` top level.
+It validates core integration and Xilinx CDC constraints; optional wrappers use
+their simulation, formal, lint, and generic synthesis targets for coverage.
 
 ```bash
 make pynq-z2
