@@ -182,6 +182,8 @@ project owns the final report review.
 | Endpoint matching | Confirm the constrained endpoints match the synthesized FIFO instance, especially after hierarchy changes or wrapper insertion. | Output from `check_async_fifo_cdc` or an equivalent tool query |
 | Reset release | Verify reset deassertion recovery/removal and local synchronization in both domains. | Reset timing and CDC/reset methodology report |
 | RAM inference | Confirm the payload memory maps to the intended dual-port RAM primitive or accepted distributed RAM implementation. | Synthesis utilization and RAM inference report |
+| RAMIF binding | For `async_fifo_ramif` or `async_bidir_ramif_fifo`, confirm the project-owned external RAM wrapper maps to the intended primitive or macro and preserves one read-clock latency with no backpressure. | RAM wrapper source, macro/inference report, RAM timing report |
+| RAM collision assumptions | For external RAM wrappers, document same-address read/write behavior and confirm the FIFO integration does not depend on a vendor-specific collision value. | RAM macro documentation or synthesis guide note plus project waiver/sign-off note |
 | Reset waiver | If the tool reports RAM address or enable changes during asynchronous reset, document the destructive-reset waiver conditions from this page. | Waiver note tied to synthesized gates and reset gating |
 | Timing closure | Review setup/hold timing, bus skew, unconstrained paths, and constraint coverage after implementation, not only after synthesis. | Post-route timing, bus-skew, and coverage reports |
 | CDC closure | Resolve or explicitly waive all CDC findings involving the FIFO instance; do not waive payload crossings as if they were pointer crossings. | CDC report with sign-off notes |

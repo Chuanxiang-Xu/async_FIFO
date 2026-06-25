@@ -299,6 +299,14 @@ ram_rd_en = rd_rstn && rd_en && !empty
 the returned `ram_rd_data`. Reset clears FIFO pointer/control state only; it
 does not clear or initialize the external RAM contents.
 
+The integrating project owns RAM inference or macro binding. Keep vendor
+attributes, FPGA primitive instances, ASIC SRAM instances, byte enables, ECC,
+and RAM-specific sleep or ready logic inside a project-local RAM wrapper. The
+wrapper connected to RAMIF must still present the fixed one-cycle,
+non-stallable contract above. Do not depend on a vendor-specific same-address
+read-during-write value; consumers use FIFO `rd_valid`, not raw `ram_rd_data`,
+as the data-valid contract.
+
 ## Bidirectional external RAM interface: `async_bidir_ramif_fifo`
 
 `async_bidir_ramif_fifo` composes two independent `async_fifo_ramif`

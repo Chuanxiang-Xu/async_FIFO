@@ -5,7 +5,9 @@ Versioning.
 
 ## [Unreleased]
 
-No unreleased changes yet.
+- Clarified RAMIF external-memory integration guidance, including vendor RAM
+  inference or macro binding, fixed one-cycle read latency, same-address
+  collision assumptions, and sign-off evidence for project-owned RAM wrappers.
 
 ## [1.1.0] - 2026-06-24
 
