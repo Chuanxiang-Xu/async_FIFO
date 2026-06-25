@@ -17,6 +17,9 @@ TEST_FILES := \
 	test/tb_fifo_basic.sv \
 	test/tb_fifo_fwft.sv \
 	test/tb_fifo_stream.sv \
+	test/tb_fifo_bidir.sv \
+	test/tb_fifo_ramif.sv \
+	test/tb_fifo_bidir_ramif.sv \
 	test/tb_fifo_random.sv \
 	test/fifo_assertions.sv \
 	test/stream_assertions.sv
@@ -27,6 +30,9 @@ TESTS := \
 	tb_fwft_first_word \
 	tb_fwft_stall_and_stream \
 	tb_fwft_empty_pop_and_reset \
+	tb_bidir_basic \
+	tb_ramif_basic \
+	tb_bidir_ramif_basic \
 	tb_almost_flags \
 	tb_pack_16_to_32 \
 	tb_split_32_to_16 \
@@ -43,7 +49,7 @@ TESTS := \
 	tb_stream_random_pack_16_to_32 \
 	tb_stream_random_split_32_to_16
 
-.PHONY: all check test tutorial params lint cdc docs-check release-check xilinx-cdc xilinx-runner-check synth formal formal-matrix pynq-z2 clean help $(TESTS)
+.PHONY: all check test tutorial params lint cdc docs-check release-check xilinx-cdc xilinx-runner-check synth formal formal-bidir formal-ramif formal-bidir-ramif formal-matrix pynq-z2 clean help $(TESTS)
 
 all: check
 
@@ -60,6 +66,9 @@ help:
 	@echo "  make xilinx-runner-check - validate a licensed Vivado CI runner"
 	@echo "  make synth  - run Yosys hierarchy and synthesis checks"
 	@echo "  make formal - prove pointer/core, reset release, and wrapper properties"
+	@echo "  make formal-bidir - prove the bidirectional wrapper properties"
+	@echo "  make formal-ramif - prove the external RAM-interface wrapper properties"
+	@echo "  make formal-bidir-ramif - prove the bidirectional RAMIF wrapper properties"
 	@echo "  make formal-matrix - sweep wrapper widths, ratios, and address sizes"
 	@echo "  make pynq-z2 - build the PYNQ-Z2 Vivado validation design"
 	@echo "  make check  - run test, lint, CDC, synthesis, and formal checks"
@@ -94,6 +103,12 @@ lint:
 	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
 		--top-module async_fifo_fwft
 	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
+		--top-module async_bidir_fifo
+	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
+		--top-module async_fifo_ramif
+	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
+		--top-module async_bidir_ramif_fifo
+	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
 		--top-module async_fifo_width_conv
 	$(VERILATOR) $(VERILATOR_LINT_FLAGS) -f $(RTL_FILES) \
 		--top-module async_fifo_stream
@@ -120,6 +135,9 @@ synth:
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_reset_sync; proc; check'
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo; proc; check'
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo_fwft; proc; check'
+	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_bidir_fifo; proc; check'
+	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo_ramif; proc; check'
+	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_bidir_ramif_fifo; proc; check'
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo_width_conv; proc; check'
 	$(YOSYS) -q -p 'read_verilog -sv $(RTL_SOURCES); hierarchy -check -top async_fifo_stream; proc; check'
 
@@ -154,6 +172,9 @@ formal:
 	rm -rf build/formal-fwft-bmc build/formal-fwft-cover
 	$(SBY) -f -d build/formal-fwft-bmc formal/fwft.sby bmc
 	$(SBY) -f -d build/formal-fwft-cover formal/fwft.sby cover
+	$(MAKE) formal-bidir
+	$(MAKE) formal-ramif
+	$(MAKE) formal-bidir-ramif
 	rm -rf build/formal-stream-pack build/formal-stream-split \
 		build/formal-stream-pack-cover build/formal-stream-split-cover
 	$(SBY) -f -d build/formal-stream-pack formal/stream.sby pack
@@ -161,6 +182,21 @@ formal:
 	$(SBY) -f -d build/formal-stream-pack-cover formal/stream.sby pack_cover
 	$(SBY) -f -d build/formal-stream-split-cover formal/stream.sby split_cover
 	$(MAKE) formal-matrix
+
+formal-bidir:
+	rm -rf build/formal-bidir-bmc build/formal-bidir-cover
+	$(SBY) -f -d build/formal-bidir-bmc formal/bidir.sby bmc
+	$(SBY) -f -d build/formal-bidir-cover formal/bidir.sby cover
+
+formal-ramif:
+	rm -rf build/formal-ramif-bmc build/formal-ramif-cover
+	$(SBY) -f -d build/formal-ramif-bmc formal/ramif.sby bmc
+	$(SBY) -f -d build/formal-ramif-cover formal/ramif.sby cover
+
+formal-bidir-ramif:
+	rm -rf build/formal-bidir-ramif-bmc build/formal-bidir-ramif-cover
+	$(SBY) -f -d build/formal-bidir-ramif-bmc formal/bidir_ramif.sby bmc
+	$(SBY) -f -d build/formal-bidir-ramif-cover formal/bidir_ramif.sby cover
 
 formal-matrix:
 	rm -rf build/formal-matrix-*
