@@ -1,6 +1,6 @@
 # Compatibility and Release Support
 
-Current RTL release: `1.1.0`.
+Current RTL release: `1.2.0`.
 
 ## Verified tool and target matrix
 

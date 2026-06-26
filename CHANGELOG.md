@@ -5,6 +5,25 @@ Versioning.
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [1.2.0] - 2026-06-25
+
+- Added `async_bidir_fifo`, a full-duplex wrapper built from two independent
+  one-way FIFO channels with no shared pointer/RAM fabric.
+- Added `async_fifo_ramif`, an experimental external/custom-RAM backend wrapper
+  that preserves the Cummings-style CDC pointer mechanism while exposing a
+  fixed one-cycle read-latency RAM contract.
+- Added `async_bidir_ramif_fifo`, a full-duplex composition of two RAM-interface
+  FIFO directions.
+- Added directed simulations for bidirectional FIFO behavior, RAMIF read-data
+  alignment, and bidirectional RAMIF traffic.
+- Added formal BMC/cover harnesses for bidirectional ordering, RAMIF ordering
+  and `rd_valid` alignment, and bidirectional RAMIF direction independence.
+- Added English and Chinese design notes for bidirectional FIFO, RAMIF FIFO, and
+  bidirectional RAMIF FIFO wrappers.
+- Updated interface, formal, CDC/sign-off, README, FuseSoC, and compatibility
+  documentation for the new optional wrapper boundaries.
 - Clarified RAMIF external-memory integration guidance, including vendor RAM
   inference or macro binding, fixed one-cycle read latency, same-address
   collision assumptions, and sign-off evidence for project-owned RAM wrappers.
