@@ -4,9 +4,13 @@
 
 [![RTL checks](https://github.com/Chuanxiang-Xu/async_FIFO/actions/workflows/sim.yml/badge.svg)](https://github.com/Chuanxiang-Xu/async_FIFO/actions/workflows/sim.yml)
 
-A compact, learning-oriented asynchronous FIFO RTL project with CDC
-constraints, wrappers, simulation/formal checks, and a small PYNQ-Z2 board
-demo.
+A readable, runnable, and verifiable teaching asynchronous FIFO RTL project
+with CDC constraints, wrappers, simulation/formal checks, and a small PYNQ-Z2
+board demo.
+
+Most users should start with `async_fifo`. This repository is a teaching
+reference, not a drop-in vendor FIFO IP replacement or a complete CDC sign-off
+package.
 
 [Use it](#which-module-should-i-use) ·
 [Docs](docs/README.md) ·
@@ -14,6 +18,11 @@ demo.
 [Cummings map](docs/cummings_mapping.md) ·
 [Learn it](docs/learning_async_fifo.md) ·
 [Formal](docs/formal_verification.md) ·
+[Evidence](docs/evidence/README.md) ·
+[Common mistakes](docs/common_mistakes/README.md) ·
+[Interview](docs/interview_guide.md) ·
+[Waveforms](docs/waveform_gallery.md) ·
+[API](docs/api.md) ·
 [XPM comparison](docs/xpm_fifo_async_comparison.md) ·
 [FWFT design](docs/fwft_design.md) ·
 [Bidir design](docs/bidir_fifo_design.md) ·
@@ -21,10 +30,33 @@ demo.
 [Bidir RAMIF design](docs/bidir_ramif_fifo_design.md) ·
 [Interface](docs/interface.md) ·
 [Architecture](docs/architecture.md) ·
+[Internal design](docs/internal_design.md) ·
+[Experimental](docs/experimental.md) ·
+[Filelists](docs/filelists.md) ·
 [CDC constraints](docs/cdc_constraints.md) ·
 [Board demo](docs/pynq_z2_vivado.md) ·
 [Limitations](#limitations--sign-off-status) ·
 [中文](README-CN.md)
+
+## Quick Start
+
+```bash
+git clone https://github.com/Chuanxiang-Xu/async_FIFO.git
+cd async_FIFO
+
+make smoke
+make tools-check
+make test
+make lint
+make formal
+make check
+```
+
+Use `make smoke` for the fastest useful sanity check while learning or making
+small documentation changes. Use `make tools-check` before the broad open-source
+regression if you are unsure whether the local simulator, lint, synthesis, and
+formal tools are installed. Use `make check` before broad handoff; it runs the
+main open-source regression targets but does not run the licensed Vivado flow.
 
 ## Which module should I use?
 
@@ -34,22 +66,23 @@ Cummings-style Gray-pointer CDC core. See
 [`examples/basic_fifo/`](examples/basic_fifo/) for the smallest complete
 example.
 
-| Need | Module | Role |
-|---|---|---|
-| A small, equal-width asynchronous FIFO | `async_fifo` | **Start here.** Minimal public entry point |
+| Need | Module | Status | Role |
+|---|---|---|---|
+| A small, equal-width asynchronous FIFO | `async_fifo` | Stable | **Start here.** Minimal public entry point |
 
 The other public FIFO variants are optional wrappers around the same
 equal-width core. Use them only when their added interface behavior matches the
 system you are building:
 
-| Need | Module | Role |
-|---|---|---|
-| Equal-width FIFO with first-word fallthrough | `async_fifo_fwft` | Optional FWFT read-side wrapper |
-| Different write and read widths | `async_fifo_width_conv` | Optional width-conversion wrapper |
-| Ready/valid streaming with `keep` and `last` | `async_fifo_stream` | Optional packet-stream wrapper |
-| Full-duplex equal-width CDC | `async_bidir_fifo` | Optional composition of two independent FIFO channels: A->B and B->A |
-| Equal-width FIFO with custom external RAM | `async_fifo_ramif` | Experimental RAM-interface wrapper |
-| Full-duplex CDC with custom external RAM | `async_bidir_ramif_fifo` | Experimental composition of bidirectional CDC and RAMIF |
+| Need | Module | Status | Role |
+|---|---|---|---|
+| Equal-width FIFO with first-word fallthrough | `async_fifo_fwft` | Stable | Optional FWFT read-side wrapper |
+| Different write and read widths | `async_fifo_width_conv` | Stable | Optional width-conversion wrapper for power-of-two ratios |
+| Ready/valid streaming with `keep` and `last` | `async_fifo_stream` | Stable | Optional packet-stream wrapper |
+| Full-duplex equal-width CDC | `async_bidir_fifo` | Beta | Composition of two independent FIFO channels: A->B and B->A |
+| Equal-width FIFO with custom external RAM | `async_fifo_ramif` | Experimental | External RAM-interface wrapper |
+| Full-duplex CDC with custom external RAM | `async_bidir_ramif_fifo` | Experimental | Composition of bidirectional CDC and RAMIF |
+| Core implementation modules | `rtl/core/*` | Internal | Read these to study or maintain the implementation; instantiate public modules for integration |
 
 Wrappers live under `rtl/wrappers/` to make their role explicit; they add
 protocol or composition behavior around the core rather than changing the
@@ -74,10 +107,21 @@ Cummings theory -> RTL core -> Formal proofs -> XPM expectations -> FWFT option
 
 The main learning path is organized around complementary questions:
 
+| Path | Start | Then run or read |
+|---|---|---|
+| I just want to use the FIFO | [`rtl/async_fifo.v`](rtl/async_fifo.v), [Interface and Timing](docs/interface.md) | `make smoke`, then [CDC Constraints](docs/cdc_constraints.md) |
+| I want to learn async FIFO theory | [Step-by-step tutorial](docs/tutorial.md) | [Cummings-Style FIFO Mapping](docs/cummings_mapping.md), then `rtl/core/wptr_full.v`, `rtl/core/rptr_empty.v`, `rtl/core/sync_w2r.v`, and `rtl/core/sync_r2w.v` |
+| I want to study verification | [Formal Verification Guide](docs/formal_verification.md) | `make formal`, `make cdc`, and the harnesses under `formal/` |
+
 | Track | Question | Start | Continue |
 |---|---|---|---|
 | Cummings | How does the classic Gray-pointer async FIFO map to this RTL? | [Step-by-step tutorial](docs/tutorial.md) | [Cummings-Style FIFO Mapping](docs/cummings_mapping.md), then [Learning Async FIFO](docs/learning_async_fifo.md) |
 | Formal | How are FIFO safety rules proved here? | [Formal Verification Guide](docs/formal_verification.md) | `formal/pointer_formal.sv`, `formal/core_formal.sv`, and the wrapper harnesses |
+| Evidence | What has actually been checked, and how can I reproduce it? | [Evidence Center](docs/evidence/README.md) | `make smoke`, `make test`, `make formal`, `make cdc`, and target-specific Vivado flows |
+| Common mistakes | What async FIFO shortcuts fail in hardware? | [Common Async FIFO Mistakes](docs/common_mistakes/README.md) | Binary pointer crossings, Gray-bus constraints, flags, reset, and depth assumptions |
+| Interview | How do I explain the design under interview pressure? | [Async FIFO Interview Guide](docs/interview_guide.md) | Core story, high-frequency questions, RTL locations, and review routes |
+| Waveforms | Which timing scenarios should I inspect first? | [Waveform Gallery](docs/waveform_gallery.md) | Tutorial VCD, standard read timing, FWFT comparison, and architecture view |
+| API boundary | Which public module should I instantiate? | [Public Module API](docs/api.md) | [Interface and Timing](docs/interface.md) for the authoritative contract |
 | XPM comparison | How does this teaching RTL compare with industrial FIFO expectations? | [Interface and Timing](docs/interface.md) | [XPM_FIFO_ASYNC Comparison](docs/xpm_fifo_async_comparison.md) |
 | FWFT | How does first-word fallthrough differ from standard read timing? | [FWFT / Fallthrough Design Notes](docs/fwft_design.md) | [`async_fifo_fwft`](rtl/wrappers/async_fifo_fwft.v), [Interface and Timing](docs/interface.md#equal-width-fwft-interface-async_fifo_fwft) |
 | Bidir | How should full-duplex CDC be built without changing the core? | [Bidirectional FIFO Wrapper Design](docs/bidir_fifo_design.md) | [`async_bidir_fifo`](rtl/wrappers/async_bidir_fifo.v), [Interface and Timing](docs/interface.md#bidirectional-equal-width-interface-async_bidir_fifo) |
@@ -90,12 +134,18 @@ The main learning path is organized around complementary questions:
 | RTL integrator | [Which module should I use?](#which-module-should-i-use) | [Interface and Timing](docs/interface.md) |
 | RTL reader | [Cummings-Style FIFO Mapping](docs/cummings_mapping.md) | [Learning Async FIFO](docs/learning_async_fifo.md) |
 | Verification reader | [Learning Async FIFO](docs/learning_async_fifo.md) | [Formal Verification Guide](docs/formal_verification.md) |
+| Evidence reviewer | [Evidence Center](docs/evidence/README.md) | [CDC Constraints](docs/cdc_constraints.md) |
+| Debugging learner | [Common Async FIFO Mistakes](docs/common_mistakes/README.md) | [Cummings-Style FIFO Mapping](docs/cummings_mapping.md) |
+| Interview prep | [Async FIFO Interview Guide](docs/interview_guide.md) | [Waveform Gallery](docs/waveform_gallery.md) |
 | Vendor-IP comparer | [Interface and Timing](docs/interface.md) | [XPM_FIFO_ASYNC Comparison](docs/xpm_fifo_async_comparison.md) |
 | FWFT user or maintainer | [Interface and Timing](docs/interface.md) | [FWFT / Fallthrough Design Notes](docs/fwft_design.md) |
 | Full-duplex CDC integrator | [Bidirectional FIFO Wrapper Design](docs/bidir_fifo_design.md) | [Interface and Timing](docs/interface.md#bidirectional-equal-width-interface-async_bidir_fifo) |
 | Custom RAM integrator | [External RAM Interface FIFO Design](docs/ramif_design.md) | [Interface and Timing](docs/interface.md#external-ram-interface-async_fifo_ramif) |
 | Full-duplex custom RAM integrator | [Bidirectional RAMIF FIFO Design](docs/bidir_ramif_fifo_design.md) | [Interface and Timing](docs/interface.md#bidirectional-external-ram-interface-async_bidir_ramif_fifo) |
 | CDC/timing reviewer | [Architecture](docs/architecture.md) | [CDC Constraints](docs/cdc_constraints.md) |
+| Maintainer | [Internal Design Map](docs/internal_design.md) | [Formal Verification Guide](docs/formal_verification.md) |
+| Advanced-wrapper user | [Experimental and Advanced Modules](docs/experimental.md) | [Interface and Timing](docs/interface.md) |
+| Tool-flow maintainer | [RTL Filelists](docs/filelists.md) | `rtl/files.f` for compatibility, `rtl/filelists/*.f` for layered scopes |
 | Board-flow user | [Simple board demo](#simple-board-demo) | [PYNQ-Z2 Vivado Validation](docs/pynq_z2_vivado.md) |
 
 The core async FIFO structure follows the well-known Cummings/Sunburst
@@ -182,6 +232,7 @@ async_FIFO/
 ├── rtl/
 │   ├── async_fifo.v             # Minimal public equal-width entry point
 │   ├── files.f                  # RTL file list
+│   ├── filelists/               # Optional layered RTL file lists
 │   ├── core/
 │   │   ├── async_fifo_core.v    # Equal-width asynchronous FIFO
 │   │   ├── fifo_mem.v           # Dual-clock simple dual-port RAM

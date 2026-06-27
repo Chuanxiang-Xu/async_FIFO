@@ -4,8 +4,11 @@
 
 [![RTL checks](https://github.com/Chuanxiang-Xu/async_FIFO/actions/workflows/sim.yml/badge.svg)](https://github.com/Chuanxiang-Xu/async_FIFO/actions/workflows/sim.yml)
 
-一个偏学习导向的紧凑异步 FIFO RTL 项目，包含 CDC 约束、wrapper、仿真/形式验证
-和一个简单的 PYNQ-Z2 板级 demo。
+一个可读、可运行、可验证的异步 FIFO 教学 RTL 项目，包含 CDC 约束、wrapper、
+仿真/形式验证和一个简单的 PYNQ-Z2 板级 demo。
+
+大多数用户应该从 `async_fifo` 开始。本仓库是教学参考，不是 vendor FIFO IP 的
+drop-in 替代品，也不是完整 CDC sign-off 包。
 
 [怎么用](#我应该使用哪个模块) ·
 [文档目录](docs/README.md) ·
@@ -13,6 +16,11 @@
 [Cummings 映射](docs/cummings_mapping_CN.md) ·
 [原理深读](docs/learning_async_fifo_CN.md) ·
 [形式验证](docs/formal_verification_CN.md) ·
+[证据中心](docs/evidence/README.md) ·
+[常见错误](docs/common_mistakes/README_CN.md) ·
+[面试指南](docs/interview_guide_CN.md) ·
+[波形图库](docs/waveform_gallery_CN.md) ·
+[API](docs/api.md) ·
 [XPM 对比](docs/xpm_fifo_async_comparison_CN.md) ·
 [FWFT 设计](docs/fwft_design_CN.md) ·
 [双向设计](docs/bidir_fifo_design_CN.md) ·
@@ -20,10 +28,32 @@
 [双向 RAMIF 设计](docs/bidir_ramif_fifo_design_CN.md) ·
 [接口](docs/interface.md) ·
 [架构](docs/architecture.md) ·
+[内部设计](docs/internal_design.md) ·
+[实验模块](docs/experimental.md) ·
+[Filelists](docs/filelists.md) ·
 [CDC 约束](docs/cdc_constraints.md) ·
 [板级 demo](docs/pynq_z2_vivado.md) ·
 [限制与签核状态](#限制与签核状态) ·
 [English](README.md)
+
+## 快速开始
+
+```bash
+git clone https://github.com/Chuanxiang-Xu/async_FIFO.git
+cd async_FIFO
+
+make smoke
+make tools-check
+make test
+make lint
+make formal
+make check
+```
+
+学习或做小型文档修改时，优先用 `make smoke` 做最快的基本 sanity check。较大范围
+交付前如果不确定本机是否装好了 simulator、lint、synthesis 和 formal 工具，先运行
+`make tools-check`。较大范围交付前使用 `make check`；它会运行主要开源回归目标，
+但不运行需要授权 Vivado 的流程。
 
 ## 我应该使用哪个模块？
 
@@ -31,21 +61,22 @@
 Cummings 风格 Gray 指针 CDC core 构建的小型等宽异步 FIFO。最小完整例子见
 [`examples/basic_fifo/`](examples/basic_fifo/)。
 
-| 需求 | 模块 | 角色 |
-|---|---|---|
-| 小型等宽异步 FIFO | `async_fifo` | **从这里开始。** 最小公开用户入口 |
+| 需求 | 模块 | 状态 | 角色 |
+|---|---|---|---|
+| 小型等宽异步 FIFO | `async_fifo` | Stable | **从这里开始。** 最小公开用户入口 |
 
 其他公开 FIFO 变体都是围绕同一个等宽 core 的可选 wrapper。只有在系统确实需要它们
 额外的接口行为时才使用：
 
-| 需求 | 模块 | 角色 |
-|---|---|---|
-| 等宽 FIFO，并需要 first-word fallthrough | `async_fifo_fwft` | 可选 FWFT 读侧 wrapper |
-| 写读位宽不同 | `async_fifo_width_conv` | 可选位宽转换 wrapper |
-| 带 `keep`、`last` 的 `ready/valid` 流接口 | `async_fifo_stream` | 可选分包流 wrapper |
-| full-duplex 等宽 CDC | `async_bidir_fifo` | 可选组合 wrapper，包含两个独立 FIFO 通道：A->B 和 B->A |
-| 等宽 FIFO，并需要自定义外部 RAM | `async_fifo_ramif` | 实验性 RAM 接口 wrapper |
-| full-duplex CDC，并需要自定义外部 RAM | `async_bidir_ramif_fifo` | 实验性双向 RAMIF 组合 wrapper |
+| 需求 | 模块 | 状态 | 角色 |
+|---|---|---|---|
+| 等宽 FIFO，并需要 first-word fallthrough | `async_fifo_fwft` | Stable | 可选 FWFT 读侧 wrapper |
+| 写读位宽不同 | `async_fifo_width_conv` | Stable | 2 次幂比例位宽转换 wrapper |
+| 带 `keep`、`last` 的 `ready/valid` 流接口 | `async_fifo_stream` | Stable | 可选分包流 wrapper |
+| full-duplex 等宽 CDC | `async_bidir_fifo` | Beta | 组合两个独立 FIFO 通道：A->B 和 B->A |
+| 等宽 FIFO，并需要自定义外部 RAM | `async_fifo_ramif` | Experimental | 外部 RAM 接口 wrapper |
+| full-duplex CDC，并需要自定义外部 RAM | `async_bidir_ramif_fifo` | Experimental | 双向 CDC 和 RAMIF 的组合 wrapper |
+| core 实现模块 | `rtl/core/*` | Internal | 供学习和维护阅读；集成时优先例化公开模块 |
 
 wrapper 变体放在 `rtl/wrappers/` 下，明确表示它们是在 core 外面增加协议或组合行为，
 而不是改变指针跨域机制。
@@ -68,10 +99,21 @@ Cummings 理论 -> RTL core -> Formal 证明 -> XPM 接口期望 -> FWFT 选项
 
 主学习路径围绕几个互补问题展开：
 
+| 路径 | 先看 | 再运行或阅读 |
+|---|---|---|
+| 我只想使用 FIFO | [`rtl/async_fifo.v`](rtl/async_fifo.v)、[接口与时序](docs/interface.md) | `make smoke`，然后看 [CDC 约束](docs/cdc_constraints.md) |
+| 我想学习异步 FIFO 原理 | [逐步教程](docs/tutorial_CN.md) | [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md)，然后读 `rtl/core/wptr_full.v`、`rtl/core/rptr_empty.v`、`rtl/core/sync_w2r.v` 和 `rtl/core/sync_r2w.v` |
+| 我想学习验证 | [形式验证指南](docs/formal_verification_CN.md) | `make formal`、`make cdc`，以及 `formal/` 下的 harness |
+
 | 主线 | 问题 | 先看 | 继续看 |
 |---|---|---|---|
 | Cummings | 经典 Gray pointer 异步 FIFO 如何映射到本 RTL？ | [逐步教程](docs/tutorial_CN.md) | [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md)，再看 [学习异步 FIFO](docs/learning_async_fifo_CN.md) |
 | Formal | 本项目如何证明 FIFO 安全行为？ | [形式验证指南](docs/formal_verification_CN.md) | `formal/pointer_formal.sv`、`formal/core_formal.sv` 和 wrapper harness |
+| Evidence | 本项目实际检查了什么，如何复现？ | [证据中心](docs/evidence/README.md) | `make smoke`、`make test`、`make formal`、`make cdc` 和目标相关 Vivado 流程 |
+| Common mistakes | 哪些异步 FIFO 捷径会在硬件里出问题？ | [常见异步 FIFO 错误](docs/common_mistakes/README_CN.md) | 二进制指针跨域、Gray bus 约束、状态标志、复位和深度假设 |
+| Interview | 面试时如何讲清楚这个设计？ | [异步 FIFO 面试指南](docs/interview_guide_CN.md) | 核心叙述、高频问题、RTL 位置和复习路线 |
+| Waveforms | 应该先看哪些时序场景？ | [波形图库](docs/waveform_gallery_CN.md) | tutorial VCD、standard read、FWFT 对比和架构图 |
+| API boundary | 应该例化哪个公开模块？ | [Public Module API](docs/api.md) | 以 [接口与时序](docs/interface.md) 作为权威契约 |
 | XPM 对比 | 教学 RTL 与工业 FIFO 接口期望有何差异？ | [接口与时序](docs/interface.md) | [XPM_FIFO_ASYNC 对比](docs/xpm_fifo_async_comparison_CN.md) |
 | FWFT | first-word fallthrough 与标准读时序有何区别？ | [FWFT / Fallthrough 设计说明](docs/fwft_design_CN.md) | [`async_fifo_fwft`](rtl/wrappers/async_fifo_fwft.v)、[接口与时序](docs/interface.md#equal-width-fwft-interface-async_fifo_fwft) |
 | 双向 | full-duplex CDC 如何在不改变 core 的前提下实现？ | [双向 FIFO Wrapper 设计](docs/bidir_fifo_design_CN.md) | [`async_bidir_fifo`](rtl/wrappers/async_bidir_fifo.v)、[接口与时序](docs/interface.md#bidirectional-equal-width-interface-async_bidir_fifo) |
@@ -84,12 +126,18 @@ Cummings 理论 -> RTL core -> Formal 证明 -> XPM 接口期望 -> FWFT 选项
 | RTL 集成者 | [我应该使用哪个模块？](#我应该使用哪个模块) | [接口与时序](docs/interface.md) |
 | RTL 阅读者 | [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md) | [学习异步 FIFO](docs/learning_async_fifo_CN.md) |
 | 验证读者 | [学习异步 FIFO](docs/learning_async_fifo_CN.md) | [形式验证指南](docs/formal_verification_CN.md) |
+| 证据/签核读者 | [证据中心](docs/evidence/README.md) | [CDC 约束](docs/cdc_constraints.md) |
+| 调试学习者 | [常见异步 FIFO 错误](docs/common_mistakes/README_CN.md) | [Cummings 风格 FIFO 映射](docs/cummings_mapping_CN.md) |
+| 面试准备 | [异步 FIFO 面试指南](docs/interview_guide_CN.md) | [波形图库](docs/waveform_gallery_CN.md) |
 | Vendor IP 对比读者 | [接口与时序](docs/interface.md) | [XPM_FIFO_ASYNC 对比](docs/xpm_fifo_async_comparison_CN.md) |
 | FWFT 用户或维护者 | [接口与时序](docs/interface.md) | [FWFT / Fallthrough 设计说明](docs/fwft_design_CN.md) |
 | full-duplex CDC 集成者 | [双向 FIFO Wrapper 设计](docs/bidir_fifo_design_CN.md) | [接口与时序](docs/interface.md#bidirectional-equal-width-interface-async_bidir_fifo) |
 | 自定义 RAM 集成者 | [外部 RAM 接口 FIFO 设计](docs/ramif_design_CN.md) | [接口与时序](docs/interface.md#external-ram-interface-async_fifo_ramif) |
 | full-duplex 自定义 RAM 集成者 | [双向 RAMIF FIFO 设计](docs/bidir_ramif_fifo_design_CN.md) | [接口与时序](docs/interface.md#bidirectional-external-ram-interface-async_bidir_ramif_fifo) |
 | CDC/时序审阅者 | [架构说明](docs/architecture.md) | [CDC 约束](docs/cdc_constraints.md) |
+| 维护者 | [Internal Design Map](docs/internal_design.md) | [形式验证指南](docs/formal_verification_CN.md) |
+| 高级 wrapper 使用者 | [Experimental and Advanced Modules](docs/experimental.md) | [接口与时序](docs/interface.md) |
+| 工具流程维护者 | [RTL Filelists](docs/filelists.md) | `rtl/files.f` 保持兼容，`rtl/filelists/*.f` 提供分层范围 |
 | 板级流程使用者 | [简单板级 demo](#简单板级-demo) | [PYNQ-Z2 Vivado 验证](docs/pynq_z2_vivado.md) |
 
 内核异步 FIFO 结构参考 Cummings/Sunburst 经典风格：本地二进制指针用于地址和
@@ -167,6 +215,7 @@ async_FIFO/
 ├── rtl/
 │   ├── async_fifo.v             # 最小等宽用户入口
 │   ├── files.f                  # RTL 文件清单
+│   ├── filelists/               # 可选分层 RTL 文件清单
 │   ├── core/
 │   │   ├── async_fifo_core.v    # 等宽异步 FIFO 顶层
 │   │   ├── fifo_mem.v           # 双时钟 Simple Dual-Port RAM

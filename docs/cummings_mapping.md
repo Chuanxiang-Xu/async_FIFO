@@ -165,6 +165,9 @@ These are the mistakes this repository tries to make easy to spot:
 - Forgetting physical timing constraints for the Gray pointer bus.
 - Assuming reset preserves FIFO contents.
 
+For short debugging lessons on these failure modes, see
+[Common Async FIFO Mistakes](common_mistakes/README.md).
+
 ## How to Read the RTL
 
 A good reading path is:

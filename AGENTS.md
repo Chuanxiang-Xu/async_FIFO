@@ -121,6 +121,166 @@ The project should remain clear enough for interviews and teaching. Prefer a
 smaller feature set with excellent explanations, tests, and proofs over a large
 IP family whose behavior is hard to learn.
 
+## Extreme Project Plan
+
+If this repository is pushed toward its best possible version, arrange work by
+closed learning loops rather than by feature count. The ideal reader journey is:
+
+```text
+README -> tutorial waveform -> Cummings mapping -> RTL -> simulation/formal
+       -> CDC/sign-off boundary -> XPM comparison -> optional wrappers
+```
+
+The priority order is:
+
+1. **Golden path first**
+   - Keep `async_fifo` as the center of gravity.
+   - Make the first README screen answer only the most important questions:
+     what this project is, which module to instantiate first, and where a
+     learner or integrator should start.
+   - Keep `docs/tutorial*.md`, `docs/cummings_mapping*.md`,
+     `docs/interface.md`, and `docs/formal_verification*.md` as the primary
+     learning route.
+   - Treat every other document as supporting material unless it directly
+     strengthens the equal-width async FIFO mental model.
+2. **Waveform-led teaching**
+   - Prefer reproducible waveform scenarios over abstract claims.
+   - Show empty-to-write-to-synchronized-visible-to-read behavior, fill to
+     full, drain to empty, simultaneous read/write, reset during traffic, and
+     FWFT fallthrough when relevant.
+   - When adding tutorial waveforms, document which signals to inspect and
+     connect the observation back to the RTL and formal properties.
+3. **Formal as explanation, not marketing**
+   - Present formal checks as readable, bounded, parameter-sampled regression
+     proofs unless a stronger claim is actually implemented.
+   - Each harness should explain what it proves, what it assumes, what it does
+     not prove, and which user-visible behavior would fail if the property
+     were violated.
+   - Prefer examples of common bugs caught by formal checks, such as binary
+     pointers crossing domains, wrong full comparison bits, blocked reads
+     advancing pointers, `rd_valid` alignment errors, or stale reset data.
+4. **Industrial boundary**
+   - Keep the XPM comparison honest: this repo can teach industrial
+     expectations, but it must not imply vendor-IP equivalence.
+   - Make "when not to use this FIFO" clear for cases such as ECC, vendor
+     primitive guarantees, dynamic programmable thresholds, data-preserving
+     one-sided reset, or a complete commercial CDC sign-off package.
+   - Keep CDC constraints, target assumptions, and sign-off responsibility
+     explicit.
+5. **Wrapper hierarchy**
+   - Treat wrappers as tiers, not as peers with the core:
+     - Tier 1: `async_fifo`, the teaching and integration center.
+     - Tier 2: `async_fifo_fwft`, because read-mode behavior is central to
+       FIFO understanding.
+     - Tier 3: `async_fifo_width_conv` and `async_fifo_stream`, useful
+       protocol adapters that must not alter the CDC core.
+     - Tier 4: `async_bidir_fifo`, `async_fifo_ramif`, and
+       `async_bidir_ramif_fifo`, advanced composition or experimental study
+       topics.
+   - Start wrapper documents by telling pure async FIFO learners when they can
+     safely skip the page.
+   - Do not let optional wrappers dominate README structure, CI runtime, or
+     the main learning path.
+6. **Engineering polish**
+   - Keep `make check` as the broad confidence target and maintain smaller
+     commands for quick iteration, core formal work, docs checks, and tutorial
+     waveform generation.
+   - Keep CI reproducible with pinned containers or checked-in environment
+     metadata.
+   - Keep contributor guidance focused on reproducible commands, parameters,
+     clocks, reset behavior, tool versions, waveforms/logs, and sign-off
+     context.
+
+The last mile is mostly restraint: improve the clarity, proof story,
+waveforms, and boundaries before adding another public top-level module. A
+strong change should make the project easier to explain, run, inspect, verify,
+or sign off.
+
+## Teaching Upgrade Mainline and Score Ladder
+
+Use this section when choosing concrete next changes. The upgrade mainline is:
+
+```text
+personal learning RTL project
+-> readable open-source teaching entry point
+-> centralized verification evidence
+-> common mistake explanations
+-> interview and waveform-led learning routes
+-> clear public/internal/experimental boundaries
+-> maintainable open-source contribution flow
+```
+
+The purpose is to raise teaching quality and trust, not to add FIFO features.
+Preserve existing RTL behavior and public interfaces unless a focused change
+has an explicit verification and documentation story.
+
+Approximate teaching score today: **8.0/10**. A disciplined implementation of
+the mainline below should move the project toward **9.0-9.3/10**.
+
+1. **Entry-point tightening: 8.0 -> 8.3**
+   - Keep the first README screen focused on what the project is, which module
+     to instantiate first, and the fastest way to run a sanity check.
+   - Add or maintain a lightweight `make smoke` target and clear `make help`
+     text without breaking existing targets.
+   - Keep `async_fifo` as the recommended starting point.
+   - Show module maturity conservatively: stable, beta, experimental,
+     internal. Do not overstate wrapper maturity.
+2. **Evidence center: 8.3 -> 8.6**
+   - Centralize reproducibility notes under `docs/evidence/`.
+   - Suggested pages: `README.md`, `simulation_summary.md`,
+     `formal_summary.md`, `cdc_summary.md`, `fpga_pynq_z2_summary.md`, and
+     `known_limits.md`.
+   - Summarize only evidence that exists in the repository or can be
+     reproduced by checked-in commands. Do not invent pass logs or board
+     results.
+   - Each evidence page should say what is checked, how to reproduce it, what
+     it does not prove, and where the reader should look next.
+3. **Common mistakes: 8.6 -> 8.8**
+   - Add `docs/common_mistakes/` as a teaching index for common async FIFO and
+     CDC errors.
+   - Important pages include binary pointer crossing, missing Gray-bus
+     constraints, wrong full/empty assumptions, unsafe reset release, and
+     non-power-of-two depth expectations.
+   - Use a consistent structure: tempting idea, why simple simulation may pass,
+     hardware risk, correct approach, and where this repository handles it.
+4. **Interview and waveform learning routes: 8.8 -> 9.0**
+   - Add an interview guide, with the Chinese version allowed to be more
+     detailed for FPGA interview preparation.
+   - Cover the core async FIFO questions: Gray pointers, extra pointer bit,
+     full/empty equations, conservative flags, two-flop synchronizers,
+     multi-bit CDC risk, Gray-bus constraints, bounded formal limits, and
+     conceptual comparison with synchronous FIFOs and XPM async FIFOs.
+   - Add a waveform gallery that references existing generated assets or uses
+     simple ASCII/Mermaid timing sketches. Do not fabricate screenshots.
+5. **Boundary documentation: 9.0 -> 9.1**
+   - If adding `docs/api.md`, keep it as a short public-module entry point and
+     link to `docs/interface.md` as the authoritative contract.
+   - If adding `docs/internal_design.md`, make it an RTL reading map, not a
+     duplicate of the learning guide.
+   - If adding `docs/experimental.md`, clearly identify experimental modules,
+     especially RAM-interface wrappers, and their integration risks.
+6. **Open-source maintenance polish: 9.1 -> 9.2**
+   - Keep issue and PR templates useful for outside users: collect tool
+     versions, OS, commands, parameters, clocks, reset scheme, target FPGA,
+     logs, waveforms, and whether public interfaces were modified.
+   - Avoid two competing template systems. If migrating Markdown templates to
+     YAML templates, keep one source of truth.
+   - Keep claims honest: prefer "teaching reference", "bounded formal checks",
+     and "requires target-specific STA/CDC/reset review" over production-IP
+     language.
+7. **Filelist and engineering cleanup: 9.2 -> 9.3**
+   - Optional filelists under `rtl/filelists/` may separate core, public,
+     stable wrappers, experimental wrappers, and all RTL.
+   - Keep `rtl/files.f` working for backward compatibility with existing
+     scripts and Makefile targets.
+   - Treat this as cleanup only; do not move RTL files or change behavior for
+     filelist aesthetics.
+
+A 10/10 teaching version requires deeper closed loops: every key concept has a
+clear explanation, RTL location, waveform scenario, simulation check, formal
+property, and CDC/constraint boundary. Reach for that loop before adding
+another module.
+
 ## Documentation Policy
 
 - Keep `README.md` and `README-CN.md` as project entry points, not full theory

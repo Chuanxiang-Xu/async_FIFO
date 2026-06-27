@@ -2,6 +2,12 @@
 
 - 
 
+## Scope And Public Surface
+
+- Affected modules/files:
+- Public ports, parameters, timing, reset behavior, or capacity changed?
+- Main FIFO, stable wrapper, beta wrapper, experimental wrapper, docs, or tooling?
+
 ## Change Type
 
 - [ ] RTL behavior
@@ -15,6 +21,7 @@
 
 Check the commands you ran:
 
+- [ ] `make smoke`
 - [ ] `make tutorial`
 - [ ] `make test`
 - [ ] `make params`
@@ -25,7 +32,14 @@ Check the commands you ran:
 - [ ] `make docs-check`
 - [ ] `make release-check`
 - [ ] `make xilinx-cdc`
+- [ ] `make pynq-z2`
 - [ ] Other:
+
+Tool/OS context, if relevant:
+
+- OS:
+- Simulator/formal/synthesis tool versions:
+- Target FPGA/device:
 
 ## Documentation
 
@@ -33,6 +47,8 @@ Check the commands you ran:
 - [ ] English and Chinese learning-path docs are kept in sync where relevant.
 - [ ] CDC/sign-off assumptions are documented when affected.
 - [ ] XPM comparison or unsupported-feature notes are updated when relevant.
+- [ ] Evidence notes are updated when reproducible checks or results changed.
+- [ ] Experimental/advanced boundaries are updated when RAMIF, bidirectional, or wrapper contracts changed.
 
 ## FIFO Safety Checklist
 
@@ -42,6 +58,16 @@ Check the commands you ran:
 - [ ] Reset assertion/release behavior considered.
 - [ ] Independent write/read clock behavior considered.
 - [ ] Wrapper-local capacity or backpressure considered.
+- [ ] `rd_valid` or stream `valid && ready` alignment considered.
+- [ ] CDC/STA/reset sign-off boundary considered.
+
+## Reproduction Or Evidence
+
+- Relevant parameters:
+- Write/read clock periods or frequencies:
+- Reset scheme:
+- Waveform, log, formal trace, or report path:
+- For CDC/timing changes, report checks or waiver context:
 
 ## Notes For Reviewers
 

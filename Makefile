@@ -4,6 +4,7 @@ VERILATOR ?= verilator
 YOSYS     ?= yosys
 PYTHON    ?= python3
 SBY       ?= sby
+Z3        ?= z3
 VIVADO    ?= vivado
 
 BUILD_DIR := build
@@ -49,18 +50,21 @@ TESTS := \
 	tb_stream_random_pack_16_to_32 \
 	tb_stream_random_split_32_to_16
 
-.PHONY: all check test tutorial params lint cdc docs-check release-check xilinx-cdc xilinx-runner-check synth formal formal-bidir formal-ramif formal-bidir-ramif formal-matrix pynq-z2 clean help $(TESTS)
+.PHONY: all smoke check test tutorial params lint cdc tools-check tools-check-vivado docs-check filelists-check release-check xilinx-cdc xilinx-runner-check synth formal formal-bidir formal-ramif formal-bidir-ramif formal-matrix pynq-z2 clean help $(TESTS)
 
 all: check
 
 help:
 	@echo "Available targets:"
+	@echo "  make smoke  - run the fastest useful sanity check"
+	@echo "  make tools-check - verify open-source regression tools are available"
 	@echo "  make test   - run all Icarus Verilog simulations"
 	@echo "  make tutorial - regenerate the tutorial async FIFO VCD"
 	@echo "  make params - verify invalid parameters fail clearly"
 	@echo "  make lint   - lint all public top-level modules with Verilator"
 	@echo "  make cdc    - run source-level synchronizer structure checks"
 	@echo "  make docs-check - verify README navigation and local Markdown links"
+	@echo "  make filelists-check - verify layered RTL filelists match rtl/files.f"
 	@echo "  make release-check - verify release metadata consistency"
 	@echo "  make xilinx-cdc - synthesize and validate the scoped Vivado XDC template"
 	@echo "  make xilinx-runner-check - validate a licensed Vivado CI runner"
@@ -74,7 +78,9 @@ help:
 	@echo "  make check  - run test, lint, CDC, synthesis, and formal checks"
 	@echo "  make clean  - remove generated files"
 
-check: test params lint cdc docs-check release-check synth formal
+smoke: tb_equal_width docs-check filelists-check cdc
+
+check: tools-check test params lint cdc docs-check filelists-check release-check synth formal
 
 test: $(TESTS)
 
@@ -116,8 +122,31 @@ lint:
 cdc:
 	$(PYTHON) scripts/check_cdc.py
 
+tools-check:
+	$(PYTHON) scripts/check_tools.py \
+		--iverilog "$(IVERILOG)" \
+		--vvp "$(VVP)" \
+		--verilator "$(VERILATOR)" \
+		--yosys "$(YOSYS)" \
+		--sby "$(SBY)" \
+		--z3 "$(Z3)"
+
+tools-check-vivado:
+	$(PYTHON) scripts/check_tools.py \
+		--iverilog "$(IVERILOG)" \
+		--vvp "$(VVP)" \
+		--verilator "$(VERILATOR)" \
+		--yosys "$(YOSYS)" \
+		--sby "$(SBY)" \
+		--z3 "$(Z3)" \
+		--vivado "$(VIVADO)" \
+		--with-vivado
+
 docs-check:
 	$(PYTHON) scripts/check_docs.py
+
+filelists-check:
+	$(PYTHON) scripts/check_filelists.py
 
 release-check:
 	$(PYTHON) scripts/check_release.py
